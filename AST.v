@@ -12,9 +12,7 @@ Inductive type : Type :=
   | TBool : type
   | TFun : type -> type -> type
   | TList : type -> type
-(*| TDatum : string -> list type -> type *)
-  | TDelayed : type -> type
-  | TAny : type
+  | TDelay : type -> type
   | TVar : nat -> type (* use number to easily generate type variables *)
   | TUnit : type.
 
@@ -31,15 +29,6 @@ Inductive binop : Type :=
   | OpAnd : binop
   | OpOr : binop.
 
-(* Inductive pattern : Type :=
-  | PNum : nat -> pattern
-  | PBool : bool -> pattern
-  | PVar : string -> pattern
-  | PDatum : string -> list pattern -> pattern
-  | PWild : pattern
-  | PCons : pattern -> pattern
-  | PNil : pattern. *)
-
 Inductive expr : Type :=
   | TmNum : nat -> expr
   | TmBool : bool -> expr
@@ -50,8 +39,6 @@ Inductive expr : Type :=
   | TmCall : expr -> expr -> expr
   | TmLet : string -> expr -> expr -> expr
   | TmBinop : binop -> expr -> expr -> expr
-(*| TmDatum : string -> list expr -> expr
-  | TmMatch : expr -> list pattern -> list expr -> expr *)
   | TmCons : expr -> expr -> expr
   | TmNil : expr
   | TmDelay : expr -> expr
