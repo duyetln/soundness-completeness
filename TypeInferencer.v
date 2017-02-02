@@ -13,7 +13,7 @@ Require Import Util.
 
 Definition environment := (@dict string (type * bool)) % type. (* bool indicates if it is let-bound variable *)
 Definition substitution := (@dict nat type) % type.
-Definition constraint := (@dict nat type) % type.
+Definition constraint := list (type * type) % type.
 
 Inductive typed_expr : Type :=
   | TpNum : nat -> type -> typed_expr
@@ -153,4 +153,71 @@ Fixpoint assign_type (ex : expr) (fv : nat) (env : environment) : option (nat * 
 
     (* TmNil *)
     | TmNil => Some (fv + 1, (TpNil (TList (TVar fv))))
+  end.
+
+Fixpoint collect_constraint (texpr : typed_expr) : constraint :=
+  match texpr with
+    (* TpNum *)
+    (* TpBool *)
+    (* TpVar *)
+    | TpNum _ _
+    | TpBool _ _
+    | TpVar _ _ => []
+
+    (* TpIf *)
+    | TpIf c e1 e2 t =>
+      let c_t := type_from_typed_expr c in
+      let e1_t := type_from_typed_expr e1 in
+      let e2_t := type_from_typed_expr e2 in
+        (collect_constraint e2) ++
+        (collect_constraint e1) ++
+        (t, e1_t)::(e1_t, e2_t)::(c_t, TBool)::[]
+
+    (* TpFun *)
+    | TpFun _ x_t e t =>
+      let e_t := type_from_typed_expr e in
+        (collect_constraint e) ++ (t, TFun x_t e_t)::[]
+
+    (* TpCall *)
+    | TpCall f e t =>
+      let f_t := type_from_typed_expr f in
+      let e_t := type_from_typed_expr e in
+        (collect_constraint e) ++
+        (collect_constraint f) ++
+        (f_t, TFun e_t t)::[]
+
+    (* TpLet *)
+    | TpLet _ x_t e1 e2 t =>
+      let e1_t := type_from_typed_expr e1 in
+      let e2_t := type_from_typed_expr e2 in
+        (collect_constraint e2) ++
+        (collect_constraint e1) ++
+        (t, e2_t)::(x_t, e1_t)::[]
+
+    (* TpBinop *)
+    | TpBinop op e1 e2 t =>
+      let e1_t := type_from_typed_expr e1 in
+      let e2_t := type_from_typed_expr e2 in
+      let op_c :=
+        match op with
+          | OpPlus | OpMinus | OpMult | OpDiv | OpMod =>
+            (t, TNum)::(e2_t, TNum)::(e1_t, TNum)::[]
+          | OpEq | OpNeq | OpLt | OpGt =>
+            (t, TBool)::(e2_t, TNum)::(e1_t, TNum)::[]
+          | OpAnd | OpOr =>
+            (t, TBool)::(e2_t, TBool)::(e1_t, TBool)::[]
+        end
+      in
+        (collect_constraint e2) ++ (collect_constraint e1) ++ op_c
+
+    (* TpCons *)
+    | TpCons hd tl t =>
+      let hd_t := type_from_typed_expr hd in
+      let tl_t := type_from_typed_expr tl in
+        (collect_constraint tl) ++
+        (collect_constraint hd) ++
+        (tl_t, TList hd_t)::(t, TList hd_t)::[]
+
+    (* TpNil *)
+    | TpNil _ => []
   end.
