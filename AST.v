@@ -15,30 +15,36 @@ Inductive type : Type :=
   | TVar : nat -> type. (* use number to easily generate type variables *)
 
 Inductive binop : Type :=
-  | OpPlus : binop
-  | OpMinus : binop
-  | OpMult : binop
-  | OpDiv : binop
-  | OpMod : binop
-  | OpEq : binop
-  | OpNeq : binop
-  | OpLt : binop
-  | OpGt : binop
-  | OpAnd : binop
-  | OpOr : binop.
+  | op_Plus : binop
+  | op_Minus : binop
+  | op_Mult : binop
+  | op_Div : binop
+  | op_Mod : binop
+  | op_Eq : binop
+  | op_Neq : binop
+  | op_Lt : binop
+  | op_Gt : binop
+  | op_And : binop
+  | op_Or : binop.
 
-Inductive expr : Type :=
-  | TmNum : nat -> expr
-  | TmBool : bool -> expr
-  | TmVar : string -> expr
-  | TmIf : expr -> expr -> expr -> expr
-  | TmFun : string -> option type -> expr -> expr
-  | TmCall : expr -> expr -> expr
-  | TmBinop : binop -> expr -> expr -> expr
-  | TmCons : expr -> expr -> expr
-  | TmNil : expr.
+Inductive ut_expr : Type := (* ut_expr : untyped expression *)
+  | ut_Num : nat -> ut_expr
+  | ut_Bool : bool -> ut_expr
+  | ut_Var : string -> ut_expr
+  | ut_If : ut_expr -> ut_expr -> ut_expr -> ut_expr
+  | ut_Fun : string -> ut_expr -> ut_expr
+  | ut_Call : ut_expr -> ut_expr -> ut_expr
+  | ut_Binop : binop -> ut_expr -> ut_expr -> ut_expr
+  | ut_Cons : ut_expr -> ut_expr -> ut_expr
+  | ut_Nil : ut_expr.
 
-Example expr1 := TmNum 1.
-Example expr2 := TmBool true.
-Example expr3 := (TmFun "x" None (TmBinop OpPlus (TmVar "x") (TmNum 1))).
-Example expr4 := (TmCall expr3 expr1).
+Inductive t_expr : Type := (* t_expr : typed expression *)
+  | t_Num : nat -> t_expr
+  | t_Bool : bool -> t_expr
+  | t_Var : string -> t_expr
+  | t_If : t_expr -> t_expr -> t_expr -> t_expr
+  | t_Fun : string -> type -> t_expr -> t_expr
+  | t_Call : t_expr -> t_expr -> t_expr
+  | t_Binop : binop -> t_expr -> t_expr -> t_expr
+  | t_Cons : t_expr -> t_expr -> t_expr
+  | t_Nil : t_expr.
