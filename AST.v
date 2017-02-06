@@ -12,8 +12,7 @@ Inductive type : Type :=
   | TBool : type
   | TFun : type -> type -> type
   | TList : type -> type
-  | TVar : nat -> type (* use number to easily generate type variables *)
-  | TUnit : type.
+  | TVar : nat -> type. (* use number to easily generate type variables *)
 
 Inductive binop : Type :=
   | OpPlus : binop
@@ -35,7 +34,6 @@ Inductive expr : Type :=
   | TmIf : expr -> expr -> expr -> expr
   | TmFun : string -> option type -> expr -> expr
   | TmCall : expr -> expr -> expr
-  | TmLet : string -> expr -> expr -> expr
   | TmBinop : binop -> expr -> expr -> expr
   | TmCons : expr -> expr -> expr
   | TmNil : expr.
@@ -44,4 +42,3 @@ Example expr1 := TmNum 1.
 Example expr2 := TmBool true.
 Example expr3 := (TmFun "x" None (TmBinop OpPlus (TmVar "x") (TmNum 1))).
 Example expr4 := (TmCall expr3 expr1).
-Example expr5 := (TmLet "x" expr4 (TmVar "x")).

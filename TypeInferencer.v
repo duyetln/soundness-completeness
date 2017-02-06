@@ -12,7 +12,6 @@ Require Import AST.
 Require Import Util.
 
 Definition environment := (@dict string (type * bool)) % type. (* bool indicates if it is let-bound variable *)
-Definition substitution := (@dict nat type) % type.
 Definition constraint := (list (type * type)) % type.
 
 Inductive typed_expr : Type :=
@@ -22,7 +21,6 @@ Inductive typed_expr : Type :=
   | TpIf : typed_expr -> typed_expr -> typed_expr -> type -> typed_expr
   | TpFun : string -> type -> typed_expr -> type -> typed_expr
   | TpCall : typed_expr -> typed_expr -> type -> typed_expr
-  | TpLet : string -> type -> typed_expr -> typed_expr -> type -> typed_expr
   | TpBinop : binop -> typed_expr -> typed_expr -> type -> typed_expr
   | TpCons : typed_expr -> typed_expr -> type -> typed_expr
   | TpNil : type -> typed_expr.
@@ -35,7 +33,6 @@ Definition type_from_typed_expr  (texpr : typed_expr) : type :=
     | TpIf _ _ _ t => t
     | TpFun _ _ _ t => t
     | TpCall _ _ t => t
-    | TpLet _ _ _ _ t => t
     | TpBinop _ _ _ t => t
     | TpCons _ _ t => t
     | TpNil t => t
@@ -60,7 +57,6 @@ Fixpoint copy_type (t : type) (fv : nat) (d : @dict nat nat): (nat * type * (@di
         | None => ((fv + 1), (TVar fv), (x, fv)::d)
         | Some v => (fv, (TVar v), d)
       end
-    | TUnit => (fv, t, d)
   end.
 
 Fixpoint assign_type (ex : expr) (fv : nat) (env : environment) : option (nat * typed_expr) % type :=
@@ -116,18 +112,6 @@ Fixpoint assign_type (ex : expr) (fv : nat) (env : environment) : option (nat * 
           end
         | None => None
       end
-
-    (* TmLet *) (* support recursion ? *)
-    | TmLet x e1 e2 =>
-      let (x_tv, x_fv) := (TVar fv, fv + 1) in
-        match assign_type e1 x_fv env with
-          | Some (e1_fv, e1_tex) =>
-            match assign_type e2 e1_fv ((x, (x_tv, true))::env) with
-              | Some (e2_fv, e2_tex) => Some (e2_fv + 1, (TpLet x x_tv e1_tex e2_tex (TVar e2_fv)))
-              | None => None
-            end
-          | None => None
-        end
 
     (* TmBinop *)
     | TmBinop op e1 e2 =>
@@ -185,14 +169,6 @@ Fixpoint collect_constraint (texpr : typed_expr) : constraint :=
         (collect_constraint e) ++
         (collect_constraint f) ++
         (f_t, TFun e_t t)::[]
-
-    (* TpLet *)
-    | TpLet _ x_t e1 e2 t =>
-      let e1_t := type_from_typed_expr e1 in
-      let e2_t := type_from_typed_expr e2 in
-        (collect_constraint e2) ++
-        (collect_constraint e1) ++
-        (t, e2_t)::(x_t, e1_t)::[]
 
     (* TpBinop *)
     | TpBinop op e1 e2 t =>
