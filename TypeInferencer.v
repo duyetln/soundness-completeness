@@ -9,9 +9,7 @@ Open Scope core_scope.
 Import ListNotations.
 
 Require Import AST.
-Require Import Util.
 
-Definition environment := (@dict string type) % type.
 Definition constraint := (list (type * type)) % type.
 
 Inductive type_holder : Type :=
@@ -38,9 +36,6 @@ Definition type_from_type_holder  (th : type_holder) : type :=
     | th_Nil t => t
   end.
 
-Definition type_from_env (x : string) (env : environment) : option type :=
-  dict_get x str_eqb env.
-
 Fixpoint assign_type (ex : ut_expr) (fv : nat) (env : environment) : option (nat * type_holder) % type :=
    match ex with
     (* ut_Num *)
@@ -52,8 +47,8 @@ Fixpoint assign_type (ex : ut_expr) (fv : nat) (env : environment) : option (nat
     (* ut_Var *)
     | ut_Var x =>
       match type_from_env x env with
-      | Some t => Some (fv, th_Var x t)
-      | None => None
+        | Some t => Some (fv, th_Var x t)
+        | None => None
       end
 
     (* ut_If *)

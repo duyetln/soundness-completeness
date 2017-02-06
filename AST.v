@@ -6,6 +6,7 @@ Open Scope list_scope.
 
 Import ListNotations.
 
+Require Import Util.
 
 Inductive type : Type :=
   | TNum : type
@@ -47,4 +48,9 @@ Inductive t_expr : Type := (* t_expr : typed expression *)
   | t_Call : t_expr -> t_expr -> t_expr
   | t_Binop : binop -> t_expr -> t_expr -> t_expr
   | t_Cons : t_expr -> t_expr -> t_expr
-  | t_Nil : t_expr.
+  | t_Nil : type -> t_expr.
+
+Definition environment := (@dict string type) % type.
+
+Definition type_from_env (x : string) (env : environment) : option type :=
+  dict_get x str_eqb env.
