@@ -85,33 +85,3 @@ Fixpoint typecheck (ex : t_expr) (env : environment) : option type :=
     (* t_Nil *)
     | t_Nil t => Some (TList t)
   end.
-
-Example ex1 : typecheck (t_Num 1) [] = Some TNum.
-Proof.
-  simpl. reflexivity.
-Qed.
-
-Example ex2 : typecheck (t_Bool true) [] = Some TBool.
-Proof.
-  simpl. reflexivity.
-Qed.
-
-Example ex3 : typecheck (t_Cons (t_Num 2) (t_Nil TNum)) [] = Some (TList TNum).
-Proof.
-  simpl. reflexivity.
-Qed.
-
-Example ex4 : typecheck (t_Var "x") (("x", TNum)::[]) = Some TNum.
-Proof.
-  simpl. reflexivity.
-Qed.
-
-Example ex5 : typecheck (t_Fun "x" TNum (t_Binop op_Plus (t_Var "x") (t_Num 2))) [] = Some (TFun TNum TNum).
-Proof.
-  simpl. reflexivity.
-Qed.
-
-Example ex6 : typecheck (t_If (t_Binop op_Lt (t_Num 1) (t_Num 2)) (t_Bool true) (t_Bool false)) [] = Some TBool.
-Proof.
-  simpl. reflexivity.
-Qed.
