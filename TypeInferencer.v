@@ -9,163 +9,92 @@ Open Scope core_scope.
 Import ListNotations.
 
 Require Import AST.
+Require Import Maps.
 
-Definition constraint := (list (type * type)) % type.
+Inductive typeinf : ut_expr -> environment -> nat -> (nat * constraint * type) % type -> Prop :=
+  (* ut_Num *)
+  (* ut_Bool *)
+  (* ut_Var *)
+  | TI_Num: forall env n fv,
+    typeinf (ut_Num n) env fv (fv, [], TNum)
+  | TI_Bool: forall env b fv,
+    typeinf (ut_Bool b) env fv (fv, [], TBool)
+  | TI_Var: forall env x fv T,
+    env x = Some T -> typeinf (ut_Var x) env fv (fv, [], T)
 
-Inductive type_holder : Type :=
-  | th_Num : nat -> type -> type_holder
-  | th_Bool : bool -> type -> type_holder
-  | th_Var : string -> type -> type_holder
-  | th_If : type_holder -> type_holder -> type_holder -> type -> type_holder
-  | th_Fun : string -> type -> type_holder -> type -> type_holder
-  | th_Call : type_holder -> type_holder -> type -> type_holder
-  | th_Binop : binop -> type_holder -> type_holder -> type -> type_holder
-  | th_Cons : type_holder -> type_holder -> type -> type_holder
-  | th_Nil : type -> type_holder.
+  (* ut_If *)
+  | TI_If:
+    forall env fv
+      c c_fv c_C c_T
+      e1 e1_fv e1_C e1_T
+      e2 e2_fv e2_C e2_T,
+    typeinf c env fv (c_fv, c_C, c_T) ->
+    typeinf e1 env c_fv (e1_fv, e1_C, e1_T) ->
+    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
+    typeinf (ut_If c e1 e2) env fv (e2_fv, [(c_T, TBool); (e1_T, e2_T)] ++ c_C ++ e1_C ++ e2_C, e1_T)
 
-Definition type_from_type_holder  (th : type_holder) : type :=
-  match th with
-    | th_Num _ t => t
-    | th_Bool _ t => t
-    | th_Var _ t => t
-    | th_If _ _ _ t => t
-    | th_Fun _ _ _ t => t
-    | th_Call _ _ t => t
-    | th_Binop _ _ _ t => t
-    | th_Cons _ _ t => t
-    | th_Nil t => t
-  end.
+  (* ut_Fun *)
+  | TI_Fun:
+    forall env fv
+      x e e_fv e_C e_T,
+    typeinf e (update env x (TVar fv)) (fv + 1) (e_fv, e_C, e_T) ->
+    typeinf (ut_Fun x e) env fv (e_fv, e_C, (TFun (TVar fv) e_T))
 
-Fixpoint assign_type (ex : ut_expr) (fv : nat) (env : environment) : option (nat * type_holder) % type :=
-   match ex with
-    (* ut_Num *)
-    | ut_Num n => Some (fv, (th_Num n TNum))
+  (* ut_Call *)
+  | TI_Call:
+    forall env fv
+      f f_fv f_C f_T
+      e e_fv e_C e_T,
+    typeinf f env fv (f_fv, f_C, f_T) ->
+    typeinf e env f_fv (e_fv, e_C, e_T) ->
+    typeinf (ut_Call f e) env fv (e_fv + 1, [(f_T, TFun e_T (TVar e_fv))] ++ f_C ++ e_C, TVar e_fv)
 
-    (* ut_Bool *)
-    | ut_Bool b => Some (fv, (th_Bool b TBool))
+  (* ut_Cons *)
+  | TI_Cons:
+    forall env fv
+      hd hd_fv hd_C hd_T
+      tl tl_fv tl_C tl_T,
+    typeinf hd env fv (hd_fv, hd_C, hd_T) ->
+    typeinf tl env hd_fv (tl_fv, tl_C, tl_T) ->
+    typeinf (ut_Cons hd tl) env fv (tl_fv, [(tl_T, TList hd_T)] ++ hd_C ++ tl_C, TList hd_T)
 
-    (* ut_Var *)
-    | ut_Var x =>
-      match type_from_env x env with
-        | Some t => Some (fv, th_Var x t)
-        | None => None
-      end
+  (* ut_Nil *)
+  | TI_Nil:
+    forall env fv,
+    typeinf ut_Nil env fv (fv + 1, [], TList (TVar fv))
 
-    (* ut_If *)
-    | ut_If c e1 e2 =>
-      match assign_type c fv env with
-        | Some (c_fv, c_th) =>
-          match assign_type e1 c_fv env with
-            | Some (e1_fv, e1_th) =>
-              match assign_type e2 e1_fv env with
-                | Some (e2_fv, e2_th) => Some (e2_fv + 1, (th_If c_th e1_th e2_th (TVar e2_fv)))
-                | _ => None
-              end
-            | _ => None
-          end
-        | _ => None
-      end
+  (* ut_Binop *)
+  | TI_Binop_nnn:
+    forall env fv op
+      e1 e1_fv e1_C e1_T
+      e2 e2_fv e2_C e2_T,
+    op = op_Plus \/
+    op = op_Minus \/
+    op = op_Mult \/
+    op = op_Div \/
+    op = op_Mod ->
+    typeinf e1 env fv (e1_fv, e1_C, e1_T) ->
+    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
+    typeinf (ut_Binop op e1 e2) env fv (e2_fv, [(e1_T, TNum); (e2_T, TNum)] ++ e1_C ++ e2_C, TNum)
 
-    (* ut_Fun *)
-    | ut_Fun x e =>
-      let (x_tv, x_fv) := (TVar fv, fv + 1) in
-        match assign_type e x_fv ((x, x_tv)::env) with
-          | Some (e_fv, e_th) => Some (e_fv + 1, th_Fun x x_tv e_th (TFun x_tv (TVar e_fv)))
-          | None => None
-        end
+  | TI_Binop_nnb:
+    forall env fv op
+      e1 e1_fv e1_C e1_T
+      e2 e2_fv e2_C e2_T,
+    op = op_Eq \/
+    op = op_Neq \/
+    op = op_Lt \/
+    op = op_Gt ->
+    typeinf e1 env fv (e1_fv, e1_C, e1_T) ->
+    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
+    typeinf (ut_Binop op e1 e2) env fv (e2_fv, [(e1_T, TNum); (e2_T, TNum)] ++ e1_C ++ e2_C, TBool)
 
-    (* ut_Call *)
-    | ut_Call f x =>
-      match assign_type f fv env with
-        | Some (f_fv, f_th) =>
-          match assign_type x f_fv env with
-            | Some (x_fv, x_th) => Some (x_fv + 1, (th_Call f_th x_th (TVar x_fv)))
-            | None => None
-          end
-        | None => None
-      end
-
-    (* ut_Binop *)
-    | ut_Binop op e1 e2 =>
-      match assign_type e1 fv env with
-        | Some (e1_fv, e1_th) =>
-          match assign_type e2 e1_fv env with
-            | Some (e2_fv, e2_th) => Some (e2_fv + 1, (th_Binop op e1_th e2_th (TVar e2_fv)))
-            | None => None
-          end
-        | None => None
-      end
-
-    (* ut_Cons *)
-    | ut_Cons h t =>
-      match assign_type h fv env with
-        | Some (h_fv, h_th) =>
-          match assign_type t h_fv env with
-            | Some (t_fv, t_th) => Some (t_fv + 1, (th_Cons h_th t_th (TList (TVar t_fv))))
-            | None => None
-          end
-        | None => None
-      end
-
-    (* ut_Nil *)
-    | ut_Nil => Some (fv + 1, (th_Nil (TList (TVar fv))))
-  end.
-
-Fixpoint collect_constraint (th : type_holder) : constraint :=
-  match th with
-    (* th_Num *)
-    (* th_Bool *)
-    (* th_Var *)
-    | th_Num _ _
-    | th_Bool _ _
-    | th_Var _ _ => []
-
-    (* th_If *)
-    | th_If c e1 e2 t =>
-      let c_t := type_from_type_holder c in
-      let e1_t := type_from_type_holder e1 in
-      let e2_t := type_from_type_holder e2 in
-        (collect_constraint e2) ++
-        (collect_constraint e1) ++
-        (t, e1_t)::(e1_t, e2_t)::(c_t, TBool)::[]
-
-    (* th_Fun *)
-    | th_Fun _ x_t e t =>
-      let e_t := type_from_type_holder e in
-        (collect_constraint e) ++ (t, TFun x_t e_t)::[]
-
-    (* th_Call *)
-    | th_Call f e t =>
-      let f_t := type_from_type_holder f in
-      let e_t := type_from_type_holder e in
-        (collect_constraint e) ++
-        (collect_constraint f) ++
-        (f_t, TFun e_t t)::[]
-
-    (* th_Binop *)
-    | th_Binop op e1 e2 t =>
-      let e1_t := type_from_type_holder e1 in
-      let e2_t := type_from_type_holder e2 in
-      let op_c :=
-        match op with
-          | op_Plus | op_Minus | op_Mult | op_Div | op_Mod =>
-            (t, TNum)::(e2_t, TNum)::(e1_t, TNum)::[]
-          | op_Eq | op_Neq | op_Lt | op_Gt =>
-            (t, TBool)::(e2_t, TNum)::(e1_t, TNum)::[]
-          | op_And | op_Or =>
-            (t, TBool)::(e2_t, TBool)::(e1_t, TBool)::[]
-        end
-      in
-        (collect_constraint e2) ++ (collect_constraint e1) ++ op_c
-
-    (* th_Cons *)
-    | th_Cons hd tl t =>
-      let hd_t := type_from_type_holder hd in
-      let tl_t := type_from_type_holder tl in
-        (collect_constraint tl) ++
-        (collect_constraint hd) ++
-        (t, TList hd_t)::(tl_t, TList hd_t)::[]
-
-    (* th_Nil *)
-    | th_Nil _ => []
-  end.
+  | TI_Binop_bbb:
+    forall env fv op
+      e1 e1_fv e1_C e1_T
+      e2 e2_fv e2_C e2_T,
+    op = op_And \/
+    op = op_Or ->
+    typeinf e1 env fv (e1_fv, e1_C, e1_T) ->
+    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
+    typeinf (ut_Binop op e1 e2) env fv (e2_fv, [(e1_T, TBool); (e2_T, TBool)] ++ e1_C ++ e2_C, TBool).
