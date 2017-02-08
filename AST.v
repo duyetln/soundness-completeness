@@ -53,3 +53,16 @@ Inductive t_expr : Type := (* t_expr : typed expression *)
 Definition environment := partial_map type.
 Definition constraint := list (type * type) % type.
 Definition substitution := list (id * type) % type.
+
+Fixpoint erase (t_ex : t_expr) : ut_expr :=
+  match t_ex with
+    | t_Num n => ut_Num n
+    | t_Bool b => ut_Bool b
+    | t_Var x => ut_Var x
+    | t_If c e1 e2 => ut_If (erase c) (erase e1) (erase e2)
+    | t_Fun x t e => ut_Fun x (erase e)
+    | t_Call f e => ut_Call (erase f) (erase e)
+    | t_Binop op e1 e2 => ut_Binop op (erase e1) (erase e2)
+    | t_Cons hd tl => ut_Cons (erase hd) (erase tl)
+    | t_Nil t => ut_Nil
+  end.
