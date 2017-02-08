@@ -9,79 +9,70 @@ Open Scope core_scope.
 Import ListNotations.
 
 Require Import AST.
+Require Import Maps.
 
-Fixpoint type_eqb (t1 t2 : type) : bool :=
-  match t1, t2 with
-    | TNum, TNum => true
-    | TBool, TBool => true
-    | TFun x1 e1, TFun x2 e2 => andb (type_eqb x1 x2) (type_eqb e1 e2)
-    | TList l1, TList l2 => type_eqb l1 l2
-    | _, _ => false
-  end.
+Inductive typecheck : t_expr -> environment -> type -> Prop :=
+  (* t_Num *)
+  (* t_Bool *)
+  (* t_Var *)
+  | TC_Num: forall env n,
+    typecheck (t_Num n) env TNum
+  | TC_Bool: forall env b,
+    typecheck (t_Bool b) env TBool
+  | TC_Var: forall env x T,
+    env x = Some T -> typecheck (t_Var x) env T
 
-Fixpoint typecheck (ex : t_expr) (env : environment) : option type :=
-  match ex with
-    (* t_Num *)
-    (* t_Bool *)
-    (* t_Var *)
-    | t_Num _ => Some TNum
-    | t_Bool _ => Some TBool
-    | t_Var x => type_from_env x env
+  (* t_If *)
+  | TC_If: forall env c e1 e2 T,
+    typecheck c env TBool ->
+    typecheck e1 env T ->
+    typecheck e2 env T ->
+    typecheck (t_If c e1 e2) env T
 
-    (* t_If *)
-    | t_If c e1 e2 =>
-      match typecheck c env, typecheck e1 env, typecheck e2 env with
-        | Some TBool, Some e1_t, Some e2_t =>
-          if type_eqb e1_t e2_t then Some e1_t
-          else None
-        | _, _, _ => None
-      end
+  (* t_Fun *)
+  | TC_Fun: forall env x x_T e e_T,
+    typecheck e (update env x x_T) e_T ->
+    typecheck (t_Fun x x_T e) env (TFun x_T e_T)
 
-    (* t_Fun *)
-    | t_Fun x x_t e =>
-      match typecheck e ((x, x_t)::env) with
-        | Some e_t => Some (TFun x_t e_t)
-        | _ => None
-      end
+  (* t_Call *)
+  | TC_Call: forall env f e e_T T,
+    typecheck f env (TFun e_T T) ->
+    typecheck e env e_T ->
+    typecheck (t_Call f e) env T
 
-    (* t_Call *)
-    | t_Call f e =>
-      match typecheck f env, typecheck e env with
-        | Some (TFun t1 t2), Some e_t =>
-          if type_eqb t1 e_t then Some t2
-          else None
-        | _, _ => None
-      end
+  (* t_Cons *)
+  | TC_Cons: forall env hd tl T,
+    typecheck hd env T ->
+    typecheck tl env (TList T) ->
+    typecheck (t_Cons hd tl) env (TList T)
 
-    (* t_Binop *)
-    | t_Binop op e1 e2 =>
-      match op with
-        | op_Plus | op_Minus | op_Mult | op_Div | op_Mod =>
-          match typecheck e1 env, typecheck e2 env with
-            | Some TNum, Some TNum => Some TNum
-            | _, _ => None
-          end
-        | op_Eq | op_Neq | op_Lt | op_Gt =>
-          match typecheck e1 env, typecheck e2 env with
-            | Some TNum, Some TNum => Some TBool
-            | _, _ => None
-          end
-        | op_And | op_Or =>
-          match typecheck e1 env, typecheck e2 env with
-            | Some TBool, Some TBool => Some TBool
-            | _, _ => None
-          end
-      end
+  (* t_Nil *)
+  | TC_Nil: forall env T,
+    typecheck (t_Nil T) env (TList T)
 
-    (* t_Cons *)
-    | t_Cons hd tl =>
-      match typecheck hd env, typecheck tl env with
-        | Some hd_t, Some (TList tl_t) =>
-          if type_eqb hd_t tl_t then Some (TList hd_t)
-          else None
-        | _, _ => None
-      end
+  (* t_Binop *)
+  | TC_Binop_nnn: forall env op e1 e2,
+    op = op_Plus \/
+    op = op_Minus \/
+    op = op_Mult \/
+    op = op_Div \/
+    op = op_Mod ->
+    typecheck e1 env TNum ->
+    typecheck e2 env TNum ->
+    typecheck (t_Binop op e1 e2) env TNum
 
-    (* t_Nil *)
-    | t_Nil t => Some (TList t)
-  end.
+  | TC_Binop_nnb: forall env op e1 e2,
+    op = op_Eq \/
+    op = op_Neq \/
+    op = op_Lt \/
+    op = op_Gt ->
+    typecheck e1 env TNum ->
+    typecheck e2 env TNum ->
+    typecheck (t_Binop op e1 e2) env TBool
+
+  | TC_Binop_bbb: forall env op e1 e2,
+    op = op_And \/
+    op = op_Or ->
+    typecheck e1 env TBool ->
+    typecheck e2 env TBool ->
+    typecheck (t_Binop op e1 e2) env TBool.
