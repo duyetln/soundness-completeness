@@ -13,7 +13,7 @@ Inductive type : Type :=
   | TBool : type
   | TFun : type -> type -> type
   | TList : type -> type
-  | TVar : nat -> type. (* use number to easily generate type variables *)
+  | TVar : id -> type. (* use number to easily generate type variables *)
 
 Inductive binop : Type :=
   | op_Plus : binop
@@ -52,3 +52,4 @@ Inductive t_expr : Type := (* t_expr : typed expression *)
 
 Definition environment := partial_map type.
 Definition constraint := list (type * type) % type.
+Definition substitution := list (id * type) % type.

@@ -43,7 +43,6 @@ Proof.
   intros H. apply H. Qed.
 
 
-
 (* Total maps *)
 
 Definition total_map (A:Type) := id -> A.
