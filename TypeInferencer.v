@@ -12,36 +12,16 @@ Require Import AST.
 Require Import Maps.
 
 
-Fixpoint occurs (i : id) (t : type) : bool :=
-  match t with
-    | TNum | TBool => false
-    | TFun x e => orb (occurs i x) (occurs i e)
-    | TList l => occurs i l
-    | TVar x => beq_id i x
-  end.
-
-Fixpoint subst (s : (id * type) % type) (t : type) : type :=
-  let (i, sub) := s in
-    match t with
-      | TNum | TBool => t
-      | TFun x e => TFun (subst s x) (subst s e)
-      | TList l => TList (subst s l)
-      | TVar x => if beq_id i x then sub else t
-    end.
-
-Fixpoint apply (sub : substitution) (tp : type) : type :=
-  fold_right (fun s t => subst s t) tp sub.
-
-Inductive typeinf : ut_expr -> environment -> nat -> (nat * constraint * type) % type -> Prop :=
+Inductive _typeinf : environment -> nat -> ut_expr -> (nat * type * constraint) % type -> Prop :=
   (* ut_Num *)
   (* ut_Bool *)
   (* ut_Var *)
   | TI_Num: forall env n fv,
-    typeinf (ut_Num n) env fv (fv, [], TNum)
+    _typeinf env fv  (ut_Num n) (fv, TNum, [])
   | TI_Bool: forall env b fv,
-    typeinf (ut_Bool b) env fv (fv, [], TBool)
+    _typeinf env fv  (ut_Bool b) (fv, TBool, [])
   | TI_Var: forall env x fv T,
-    env x = Some T -> typeinf (ut_Var x) env fv (fv, [], T)
+    env x = Some T -> _typeinf env fv (ut_Var x) (fv, T, [])
 
   (* ut_If *)
   | TI_If:
@@ -49,40 +29,40 @@ Inductive typeinf : ut_expr -> environment -> nat -> (nat * constraint * type) %
       c c_fv c_C c_T
       e1 e1_fv e1_C e1_T
       e2 e2_fv e2_C e2_T,
-    typeinf c env fv (c_fv, c_C, c_T) ->
-    typeinf e1 env c_fv (e1_fv, e1_C, e1_T) ->
-    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
-    typeinf (ut_If c e1 e2) env fv (e2_fv, e2_C ++ e1_C ++ c_C ++ [(e1_T, e2_T); (c_T, TBool)], e1_T)
+    _typeinf env fv c (c_fv, c_T, c_C) ->
+    _typeinf env c_fv  e1 (e1_fv, e1_T, e1_C) ->
+    _typeinf env e1_fv  e2 (e2_fv, e2_T, e2_C) ->
+    _typeinf env fv (ut_If c e1 e2) (e2_fv, e1_T, e2_C ++ e1_C ++ c_C ++ [(e1_T, e2_T); (c_T, TBool)])
 
   (* ut_Fun *)
   | TI_Fun:
     forall env fv
       x e e_fv e_C e_T,
-    typeinf e (update env x (TVar (Id fv))) (fv + 1) (e_fv, e_C, e_T) ->
-    typeinf (ut_Fun x e) env fv (e_fv, e_C, (TFun (TVar (Id fv)) e_T))
+    _typeinf (update env x (TVar (Id fv))) (fv + 1)  e (e_fv, e_T, e_C) ->
+    _typeinf env fv (ut_Fun x e) (e_fv, (TFun (TVar (Id fv)) e_T), e_C)
 
   (* ut_Call *)
   | TI_Call:
     forall env fv
       f f_fv f_C f_T
       e e_fv e_C e_T,
-    typeinf f env fv (f_fv, f_C, f_T) ->
-    typeinf e env f_fv (e_fv, e_C, e_T) ->
-    typeinf (ut_Call f e) env fv (e_fv + 1, e_C ++ f_C ++ [(f_T, TFun e_T (TVar (Id e_fv)))], TVar (Id e_fv))
+    _typeinf env fv f (f_fv, f_T, f_C) ->
+    _typeinf env f_fv e (e_fv, e_T, e_C) ->
+    _typeinf env fv (ut_Call f e) (e_fv + 1, TVar (Id e_fv), e_C ++ f_C ++ [(f_T, TFun e_T (TVar (Id e_fv)))])
 
   (* ut_Cons *)
   | TI_Cons:
     forall env fv
       hd hd_fv hd_C hd_T
       tl tl_fv tl_C tl_T,
-    typeinf hd env fv (hd_fv, hd_C, hd_T) ->
-    typeinf tl env hd_fv (tl_fv, tl_C, tl_T) ->
-    typeinf (ut_Cons hd tl) env fv (tl_fv, tl_C ++ hd_C ++ [(tl_T, TList hd_T)], TList hd_T)
+    _typeinf env fv hd (hd_fv, hd_T, hd_C) ->
+    _typeinf env hd_fv tl (tl_fv, tl_T, tl_C) ->
+    _typeinf env fv (ut_Cons hd tl) (tl_fv, TList hd_T, tl_C ++ hd_C ++ [(tl_T, TList hd_T)])
 
   (* ut_Nil *)
   | TI_Nil:
     forall env fv,
-    typeinf ut_Nil env fv (fv + 1, [], TList (TVar (Id fv)))
+    _typeinf env fv ut_Nil (fv + 1, TList (TVar (Id fv)), [])
 
   (* ut_Binop *)
   | TI_Binop_nnn:
@@ -94,9 +74,9 @@ Inductive typeinf : ut_expr -> environment -> nat -> (nat * constraint * type) %
     op = op_Mult \/
     op = op_Div \/
     op = op_Mod ->
-    typeinf e1 env fv (e1_fv, e1_C, e1_T) ->
-    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
-    typeinf (ut_Binop op e1 e2) env fv (e2_fv, e2_C++ e1_C ++ [(e2_T, TNum); (e1_T, TNum)], TNum)
+    _typeinf env fv e1 (e1_fv, e1_T, e1_C) ->
+    _typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
+    _typeinf env fv (ut_Binop op e1 e2) (e2_fv, TNum, e2_C++ e1_C ++ [(e2_T, TNum); (e1_T, TNum)])
 
   | TI_Binop_nnb:
     forall env fv op
@@ -106,9 +86,9 @@ Inductive typeinf : ut_expr -> environment -> nat -> (nat * constraint * type) %
     op = op_Neq \/
     op = op_Lt \/
     op = op_Gt ->
-    typeinf e1 env fv (e1_fv, e1_C, e1_T) ->
-    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
-    typeinf (ut_Binop op e1 e2) env fv (e2_fv, e2_C++ e1_C ++ [(e2_T, TNum); (e1_T, TNum)], TBool)
+    _typeinf env fv e1 (e1_fv, e1_T, e1_C) ->
+    _typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
+    _typeinf env fv (ut_Binop op e1 e2) (e2_fv, TBool, e2_C++ e1_C ++ [(e2_T, TNum); (e1_T, TNum)])
 
   | TI_Binop_bbb:
     forall env fv op
@@ -116,9 +96,15 @@ Inductive typeinf : ut_expr -> environment -> nat -> (nat * constraint * type) %
       e2 e2_fv e2_C e2_T,
     op = op_And \/
     op = op_Or ->
-    typeinf e1 env fv (e1_fv, e1_C, e1_T) ->
-    typeinf e2 env e1_fv (e2_fv, e2_C, e2_T) ->
-    typeinf (ut_Binop op e1 e2) env fv (e2_fv, e2_C++ e1_C ++ [(e2_T, TBool); (e1_T, TBool)], TBool).
+    _typeinf env fv e1 (e1_fv, e1_T, e1_C) ->
+    _typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
+    _typeinf env fv (ut_Binop op e1 e2) (e2_fv, TBool, e2_C++ e1_C ++ [(e2_T, TBool); (e1_T, TBool)]).
+
+(* this is ugly *)
+Inductive typeinf : ut_expr -> (type * constraint) % type -> Prop :=
+  | Wrap: forall e n C T,
+    _typeinf (@empty type) 0 e (n, T, C) -> typeinf e (T, C).
+
 
 (* Process constraints from right to left *)
 Inductive unify : constraint -> substitution -> Prop :=
