@@ -105,6 +105,33 @@ Inductive typeinf : ut_expr -> (type * constraint) % type -> Prop :=
   | Wrap: forall e n C T,
     _typeinf (@empty type) 0 e (n, T, C) -> typeinf e (T, C).
 
+Fixpoint occurs (i : id) (t : type) : bool :=
+  match t with
+    | TNum | TBool => false
+    | TFun x e => orb (occurs i x) (occurs i e)
+    | TList l => occurs i l
+    | TVar x => beq_id i x
+  end.
+
+Fixpoint subst (s : (id * type) % type) (t : type) : type :=
+  let (i, sub) := s in
+    match t with
+      | TNum | TBool => t
+      | TFun x e => TFun (subst s x) (subst s e)
+      | TList l => TList (subst s l)
+      | TVar x => if beq_id i x then sub else t
+    end.
+
+Fixpoint apply (sub : substitution) (tp : type) : type :=
+  fold_right (fun s t => subst s t) tp sub.
+
+Inductive solution : substitution -> constraint -> Prop :=
+  | S_Empty: forall s, solution s []
+  | S_NotEmpty:
+    forall s t1 t2 tl,
+    apply s t1 = apply s t2 ->
+    solution s tl ->
+    solution s ((t1, t2)::tl).
 
 (* Process constraints from right to left *)
 Inductive unify : constraint -> substitution -> Prop :=
