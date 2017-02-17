@@ -100,7 +100,6 @@ Inductive typeinf : environment -> nat -> ut_expr -> (nat * type * constraint) %
     typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
     typeinf env fv (ut_Binop op e1 e2) (e2_fv, TBool, e2_C++ e1_C ++ [(e2_T, TBool); (e1_T, TBool)]).
 
-
 Fixpoint occurs (i : id) (t : type) : bool :=
   match t with
     | TNum | TBool => false
@@ -122,8 +121,8 @@ Fixpoint app_substs (sub : substitution) (tp : type) : type :=
   fold_right (fun s t => subst s t) tp sub.
 
 Inductive solution : substitution -> constraint -> Prop :=
-  | S_Empty: forall s, solution s []
-  | S_NotEmpty:
+  | SOL_Empty: forall s, solution s []
+  | SOL_NotEmpty:
     forall s t1 t2 tl,
     app_substs s t1 = app_substs s t2 ->
     solution s tl ->
