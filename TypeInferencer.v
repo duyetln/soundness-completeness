@@ -118,14 +118,14 @@ Fixpoint subst (s : (id * type) % type) (t : type) : type :=
       | TVar x => if beq_id i x then sub else t
     end.
 
-Fixpoint apply (sub : substitution) (tp : type) : type :=
+Fixpoint app_substs (sub : substitution) (tp : type) : type :=
   fold_right (fun s t => subst s t) tp sub.
 
 Inductive solution : substitution -> constraint -> Prop :=
   | S_Empty: forall s, solution s []
   | S_NotEmpty:
     forall s t1 t2 tl,
-    apply s t1 = apply s t2 ->
+    app_substs s t1 = app_substs s t2 ->
     solution s tl ->
     solution s ((t1, t2)::tl).
 
@@ -137,16 +137,16 @@ Inductive unify : constraint -> substitution -> Prop :=
   | U_NumNum:
     forall t1 t2 tl tl_sub,
     unify tl tl_sub ->
-    apply tl_sub t1 = TNum ->
-    apply tl_sub t2 = TNum ->
+    app_substs tl_sub t1 = TNum ->
+    app_substs tl_sub t2 = TNum ->
     unify ((t1, t2)::tl) tl_sub
 
   (* (TBool, TBool) *)
   | U_BoolBool:
     forall t1 t2 tl tl_sub,
     unify tl tl_sub ->
-    apply tl_sub t1 = TBool ->
-    apply tl_sub t2 = TBool ->
+    app_substs tl_sub t1 = TBool ->
+    app_substs tl_sub t2 = TBool ->
     unify ((t1, t2)::tl) tl_sub
 
   (* (TFun x1 e1, TFun x2 e2) *)
@@ -154,8 +154,8 @@ Inductive unify : constraint -> substitution -> Prop :=
     forall t1 t2 tl tl_sub
       x1 e1 x2 e2 fun_sub,
     unify tl tl_sub ->
-    apply tl_sub t1 = TFun x1 e1 ->
-    apply tl_sub t2 = TFun x2 e2 ->
+    app_substs tl_sub t1 = TFun x1 e1 ->
+    app_substs tl_sub t2 = TFun x2 e2 ->
     unify [(x1, x2);(e1, e2)] fun_sub ->
     unify ((t1, t2)::tl) (fun_sub ++ tl_sub)
 
@@ -164,8 +164,8 @@ Inductive unify : constraint -> substitution -> Prop :=
     forall t1 t2 tl tl_sub
       l1 l2 list_sub,
     unify tl tl_sub ->
-    apply tl_sub t1 = TList l1 ->
-    apply tl_sub t2 = TList l2 ->
+    app_substs tl_sub t1 = TList l1 ->
+    app_substs tl_sub t2 = TList l2 ->
     unify [(l1, l2)] list_sub ->
     unify ((t1, t2)::tl) (list_sub ++ tl_sub)
 
@@ -174,8 +174,8 @@ Inductive unify : constraint -> substitution -> Prop :=
     forall t1 t2 tl tl_sub
       id1 id2,
     unify tl tl_sub ->
-    apply tl_sub t1 = TVar id1 ->
-    apply tl_sub t2 = TVar id2 ->
+    app_substs tl_sub t1 = TVar id1 ->
+    app_substs tl_sub t2 = TVar id2 ->
     beq_id id1 id2 = true ->
     unify ((t1, t2)::tl) tl_sub
 
@@ -184,8 +184,8 @@ Inductive unify : constraint -> substitution -> Prop :=
     forall t1 t2 tl tl_sub
       x T,
     unify tl tl_sub ->
-    apply tl_sub t1 = TVar x ->
-    apply tl_sub t2 = T ->
+    app_substs tl_sub t1 = TVar x ->
+    app_substs tl_sub t2 = T ->
     occurs x T = false ->
     unify ((t1, t2)::tl) ((x, T)::tl_sub)
 
@@ -194,7 +194,7 @@ Inductive unify : constraint -> substitution -> Prop :=
     forall t1 t2 tl tl_sub
       x T,
     unify tl tl_sub ->
-    apply tl_sub t1 = T ->
-    apply tl_sub t2 = TVar x ->
+    app_substs tl_sub t1 = T ->
+    app_substs tl_sub t2 = TVar x ->
     occurs x T = false ->
     unify ((t1, t2)::tl) ((x, T)::tl_sub).
