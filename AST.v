@@ -54,30 +54,40 @@ Definition environment := partial_map type.
 Definition constraint := list (type * type) % type.
 Definition substitution := list (id * type) % type.
 
+Fixpoint vartype (t : type) : bool :=
+  match t with
+    | TNum | TBool => false
+    | TFun x e => orb (vartype x) (vartype e)
+    | TList l => vartype l
+    | TVar x => true
+  end.
+
 Inductive erase : t_expr -> ut_expr -> Prop :=
   | E_Num: forall n, erase (t_Num n) (ut_Num n)
   | E_Bool: forall b, erase (t_Bool b) (ut_Bool b)
   | E_Var: forall x, erase (t_Var x) (ut_Var x)
   | E_If: forall c c_e e1 e1_e e2 e2_e,
-      erase c c_e ->
-      erase e1 e1_e ->
-      erase e2 e2_e ->
-      erase (t_If c e1 e2) (ut_If c_e e1_e e2_e)
+    erase c c_e ->
+    erase e1 e1_e ->
+    erase e2 e2_e ->
+    erase (t_If c e1 e2) (ut_If c_e e1_e e2_e)
   | E_Fun: forall x t e e_e,
-      erase e e_e ->
-      erase (t_Fun x t e) (ut_Fun x e_e)
+    vartype t = false ->
+    erase e e_e ->
+    erase (t_Fun x t e) (ut_Fun x e_e)
   | E_Call: forall f f_e e e_e,
-      erase f f_e ->
-      erase e e_e ->
-      erase (t_Call f e) (ut_Call f_e e_e)
+    erase f f_e ->
+    erase e e_e ->
+    erase (t_Call f e) (ut_Call f_e e_e)
   | E_Binop: forall op e1 e1_e e2 e2_e,
-      erase e1 e1_e ->
-      erase e2 e2_e ->
-      erase (t_Binop op e1 e2) (ut_Binop op e1_e e2_e)
+    erase e1 e1_e ->
+    erase e2 e2_e ->
+    erase (t_Binop op e1 e2) (ut_Binop op e1_e e2_e)
   | E_Cons: forall hd hd_e tl tl_e,
-      erase hd hd_e ->
-      erase tl tl_e ->
-      erase (t_Cons hd tl) (ut_Cons hd_e tl_e)
+    erase hd hd_e ->
+    erase tl tl_e ->
+    erase (t_Cons hd tl) (ut_Cons hd_e tl_e)
   | E_Nil: forall t,
-      erase (t_Nil t) ut_Nil.
+    vartype t = false ->
+    erase (t_Nil t) ut_Nil.
 
