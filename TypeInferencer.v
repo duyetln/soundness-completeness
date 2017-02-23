@@ -133,19 +133,14 @@ Inductive unify : constraint -> substitution -> Prop :=
   | U_Empty: unify [] []
 
   (* (TNum, TNum) *)
-  | U_NumNum:
-    forall t1 t2 tl tl_sub,
-    unify tl tl_sub ->
-    app_substs tl_sub t1 = TNum ->
-    app_substs tl_sub t2 = TNum ->
-    unify ((t1, t2)::tl) tl_sub
-
   (* (TBool, TBool) *)
-  | U_BoolBool:
-    forall t1 t2 tl tl_sub,
+  (* (S, S) *)
+  (* (TVar i, TVar i) *)
+  | U_Identical:
+    forall t1 t2 t tl tl_sub,
     unify tl tl_sub ->
-    app_substs tl_sub t1 = TBool ->
-    app_substs tl_sub t2 = TBool ->
+    app_substs tl_sub t1 = t ->
+    app_substs tl_sub t2 = t ->
     unify ((t1, t2)::tl) tl_sub
 
   (* (TFun x1 e1, TFun x2 e2) *)
@@ -167,16 +162,6 @@ Inductive unify : constraint -> substitution -> Prop :=
     app_substs tl_sub t2 = TList l2 ->
     unify [(l1, l2)] list_sub ->
     unify ((t1, t2)::tl) (list_sub ++ tl_sub)
-
-  (* (TVar id1, TVar id2) *)
-  | U_VarVar:
-    forall t1 t2 tl tl_sub
-      id1 id2,
-    unify tl tl_sub ->
-    app_substs tl_sub t1 = TVar id1 ->
-    app_substs tl_sub t2 = TVar id2 ->
-    beq_id id1 id2 = true ->
-    unify ((t1, t2)::tl) tl_sub
 
   (* (TVar x, _) *)
   | U_VarLeft:
