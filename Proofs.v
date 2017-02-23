@@ -59,7 +59,7 @@ Theorem typeinference_soundness :
   (exists (s : substitution), solution s C /\ app_substs s S = T).
 Proof.
   intros t T e env fv S C He Htc Hti.
-  induction t.
+  destruct t.
   - inversion He. rewrite <- H1 in Hti.
     inversion Hti. inversion Htc.
     exists []. simpl. split.
