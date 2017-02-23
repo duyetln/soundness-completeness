@@ -63,6 +63,58 @@ Theorem typeinference_soundness :
   erase t e ->
   typecheck env t T ->
   typeinf env 0 e (fv, S, C) ->
+  (exists s, unify ((S, T)::C) s).
+Proof.
+  intros t T e env fv S C He Htc Hti.
+  destruct t.
+  - inversion He. rewrite <- H1 in Hti.
+    inversion Hti. inversion Htc.
+    exists []. simpl. apply U_Identical with (t:=TNum).
+    * apply U_Empty.
+    * reflexivity.
+    * reflexivity.
+  - inversion He. rewrite <- H1 in Hti.
+    inversion Hti. inversion Htc.
+    exists []. simpl. apply U_Identical with (t:=TBool).
+    * apply U_Empty.
+    * reflexivity.
+    * reflexivity.
+  - inversion He. rewrite <- H1 in Hti.
+    inversion Hti. inversion Htc.
+    rewrite H10 in H5. inversion H5.
+    exists []. simpl. apply U_Identical with (t:=S).
+    * apply U_Empty.
+    * reflexivity.
+    * reflexivity.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - inversion He. rewrite <- H1 in Hti.
+    inversion Hti. inversion Htc.
+    exists [(Id 0, t)].
+    apply U_ListList with
+      (tl_sub:=[])
+      (list_sub:=[(Id 0, t)])
+      (l1:=TVar (Id 0))
+      (l2:=t).
+    * apply U_Empty.
+    * reflexivity.
+    * reflexivity.
+    * apply U_VarLeft.
+      + apply U_Empty.
+      + reflexivity.
+      + reflexivity.
+      + apply (occurs_nontvar (Id 0) t). assumption.
+Admitted.
+(*
+Theorem typeinference_soundness :
+  forall (t : t_expr) (T : type)
+    (e : ut_expr) (env : environment) (fv : nat) (S : type) (C : constraint),
+  erase t e ->
+  typecheck env t T ->
+  typeinf env 0 e (fv, S, C) ->
   (exists (s : substitution), solution s C /\ app_substs s S = T).
 Proof.
   intros t T e env fv S C He Htc Hti.
@@ -87,13 +139,15 @@ Proof.
   - admit.
   - admit.
   - admit.
-  - admit.
+  - inversion He. rewrite <- H2 in Hti.
+    inversion Hti. inversion Htc.
   - inversion He. rewrite <- H1 in Hti.
     inversion Hti. inversion Htc.
     exists [(Id 0, t)]. split.
     * apply SOL_Empty.
-    *  reflexivity.
+    * reflexivity.
 Admitted.
+*)
 
 Theorem typeinference_completeness :
   forall (e : ut_expr) (env : environment) (fv : nat) (S : type) (C :constraint) (s : substitution),
