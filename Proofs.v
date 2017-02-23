@@ -70,13 +70,22 @@ Proof.
     exists []. simpl. split.
     * apply SOL_Empty.
     * reflexivity.
+  - inversion He. rewrite <- H1 in Hti.
+    inversion Hti. inversion Htc.
+    rewrite H10 in H5. inversion H5.
+    exists []. simpl. split.
+    * apply SOL_Empty.
+    * reflexivity.
   - admit.
   - admit.
   - admit.
   - admit.
   - admit.
-  - admit.
-  - admit.
+  - inversion He. rewrite <- H1 in Hti.
+    inversion Hti. inversion Htc.
+    exists [(Id 0, t)]. split.
+    * apply SOL_Empty.
+    *  reflexivity.
 Admitted.
 
 Theorem typeinference_completeness :
