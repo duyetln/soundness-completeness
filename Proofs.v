@@ -17,14 +17,21 @@ Require Import TypeChecker.
 (* ################################################################# *)
 (* Small proofs *)
 
-(* erase *)
-Lemma erase_common : forall t ut1 ut2,
-  erase t ut1 ->
-  erase t ut2 ->
-  ut1 = ut2.
+(* occurs *)
+Lemma occurs_nontvar : forall i t, vartype t = false -> occurs i t = false.
 Proof.
-Admitted.
-
+  intros i t H.
+  induction t.
+  - reflexivity.
+  - reflexivity.
+  - simpl. apply orb_false_iff. split.
+    * inversion H. apply orb_false_iff in H1. destruct H1.
+      rewrite H0. rewrite H1. simpl. apply IHt1. assumption.
+    * inversion H. apply orb_false_iff in H1. destruct H1.
+      rewrite H0. rewrite H1. simpl. apply IHt2. assumption.
+  - simpl. inversion H. rewrite H1. apply IHt. assumption.
+  - inversion H.
+Qed.
 
 (* app_substs *)
 Example app_substs_ex1 : app_substs [(Id 1, TNum)] (TFun (TVar (Id 1)) TNum) = TFun TNum TNum.
