@@ -184,10 +184,13 @@ Proof.
 Admitted.
 
 Theorem typeinference_completeness :
-  forall (e : ut_expr) (env : environment) (fv : nat) (S : type) (C :constraint) (s : substitution),
+  forall (e : ut_expr) (T : type) (env : environment) (fv : nat) (S : type) (C :constraint),
   typeinf env 0 e (fv, S, C) ->
-  solution s C ->
-  (exists (t : t_expr), erase t e /\ typecheck env t (app_substs s S)).
+  (exists (s : substitution),
+    solution s C /\
+    app_substs s S = T /\
+    vartype T = false) ->
+  (exists (t : t_expr), erase t e /\ typecheck env t T).
 Proof.
   intros e env fv S C s Hti Hs.
   induction e.
