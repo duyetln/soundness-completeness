@@ -117,7 +117,7 @@ Fixpoint subst (s : (id * type) % type) (t : type) : type :=
       | TVar x => if beq_id i x then sub else t
     end.
 
-Fixpoint app_substs (sub : substitution) (tp : type) : type :=
+Definition app_substs (sub : substitution) (tp : type) : type :=
   fold_right (fun s t => subst s t) tp sub.
 
 Inductive solution : substitution -> constraint -> Prop :=
