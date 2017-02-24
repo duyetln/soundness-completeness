@@ -85,6 +85,7 @@ Qed.
 
 (* ################################################################# *)
 (* Main goals *)
+(*
 Theorem typeinference_soundness :
   forall (t : t_expr) (T : type)
     (e : ut_expr) (env : environment) (fv : nat) (S : type) (C : constraint),
@@ -95,22 +96,19 @@ Theorem typeinference_soundness :
 Proof.
   intros t T e env fv S C He Htc Hti.
   destruct t.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
-    exists []. simpl. apply U_Identical with (t:=TNum).
+  - inverts He. inverts Hti. inverts Htc.
+    exists (@nil (id * type) % type). simpl. apply U_Identical with (t:=TNum).
     * apply U_Empty.
     * reflexivity.
     * reflexivity.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
-    exists []. simpl. apply U_Identical with (t:=TBool).
+  - inverts He. inverts Hti. inverts Htc.
+    exists (@nil (id * type) % type). simpl. apply U_Identical with (t:=TBool).
     * apply U_Empty.
     * reflexivity.
     * reflexivity.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
-    rewrite H10 in H5. inversion H5.
-    exists []. simpl. apply U_Identical with (t:=S).
+  - inverts He. inverts Hti. inverts Htc.
+    rewrite H1 in H3. inverts H3.
+    exists (@nil (id * type) % type). simpl. apply U_Identical with (t:=S).
     * apply U_Empty.
     * reflexivity.
     * reflexivity.
@@ -118,9 +116,23 @@ Proof.
   - admit.
   - admit.
   - admit.
-  - admit.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
+(*
+| U_ListList:
+    forall t1 t2 tl tl_sub
+      l1 l2 list_sub,
+    unify tl tl_sub ->
+    app_substs tl_sub t1 = TList l1 ->
+    app_substs tl_sub t2 = TList l2 ->
+    unify [(l1, l2)] list_sub ->
+    unify ((t1, t2)::tl) (list_sub ++ tl_sub)
+*)
+(*
+unify ((TList hd_T, TList T0) :: tl_C ++ hd_C ++ [(tl_T, TList hd_T)]) ?s
+*)
+  - inverts He. inverts Hti. inverts Htc. sort.
+    eexists.
+    apply U_ListList with
+  - inverts He. inverts Hti. inverts Htc.
     exists [(Id 0, t)].
     apply U_ListList with
       (tl_sub:=[])
@@ -136,7 +148,7 @@ Proof.
       + reflexivity.
       + apply (occurs_nontvar (Id 0) t). assumption.
 Admitted.
-(*
+*)
 Theorem typeinference_soundness :
   forall (t : t_expr) (T : type)
     (e : ut_expr) (env : environment) (fv : nat) (S : type) (C : constraint),
@@ -145,37 +157,31 @@ Theorem typeinference_soundness :
   typeinf env 0 e (fv, S, C) ->
   (exists (s : substitution), solution s C /\ app_substs s S = T).
 Proof.
-  intros t T e env fv S C He Htc Hti.
+  introv He Htc Hti.
   destruct t.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
-    exists []. simpl. split.
+  - inverts He. inverts Hti. inverts Htc.
+    exists (@nil (id * type) % type). simpl. split.
     * apply SOL_Empty.
     * reflexivity.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
-    exists []. simpl. split.
+  - inverts He. inverts Hti. inverts Htc.
+    exists (@nil (id * type) % type). simpl. split.
     * apply SOL_Empty.
     * reflexivity.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
-    rewrite H10 in H5. inversion H5.
-    exists []. simpl. split.
+  - inverts He. inverts Hti. inverts Htc.
+    rewrite H1 in H3. inverts H3.
+    exists (@nil (id * type) % type). simpl. split.
     * apply SOL_Empty.
     * reflexivity.
   - admit.
   - admit.
   - admit.
   - admit.
-  - inversion He. rewrite <- H2 in Hti.
-    inversion Hti. inversion Htc.
-  - inversion He. rewrite <- H1 in Hti.
-    inversion Hti. inversion Htc.
+  - admit.
+  - inverts He. inverts Hti. inverts Htc.
     exists [(Id 0, t)]. split.
     * apply SOL_Empty.
     * reflexivity.
 Admitted.
-*)
 
 Theorem typeinference_completeness :
   forall (e : ut_expr) (env : environment) (fv : nat) (S : type) (C :constraint) (s : substitution),
