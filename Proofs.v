@@ -21,7 +21,7 @@ Require Import TypeChecker.
 (* occurs *)
 Lemma occurs_nontvar : forall i t, vartype t = false -> occurs i t = false.
 Proof.
-  intros i t H.
+  introv H.
   induction t.
   - reflexivity.
   - reflexivity.
@@ -32,6 +32,33 @@ Proof.
       rewrite H0. rewrite H1. simpl. apply IHt2. assumption.
   - simpl. inversion H. rewrite H1. apply IHt. assumption.
   - inversion H.
+Qed.
+
+(* subst *)
+Lemma subst_vartype_false : forall i t t', vartype t = false  -> subst (i, t') t = t.
+Proof.
+  introv Hvt.
+  induction t.
+  - reflexivity.
+  - reflexivity.
+  - inversion Hvt. apply orb_false_iff in H0. destruct H0.
+    intuition. simpl. rewrite H1, H2. reflexivity.
+  - inversion Hvt. intuition. simpl. rewrite H. reflexivity.
+  - inversion Hvt.
+Qed.
+
+(* app_substs *)
+Lemma app_substs_nontvar : forall s t, vartype t = false -> app_substs s t = t.
+Proof.
+  introv H.
+  induction s as [|hd tl].
+  - reflexivity.
+  - destruct t.
+    * simpl. rewrite IHtl. destruct hd. apply subst_vartype_false. assumption.
+    * simpl. rewrite IHtl. destruct hd. apply subst_vartype_false. assumption.
+    * simpl. rewrite IHtl. destruct hd. apply subst_vartype_false. assumption.
+    * simpl. rewrite IHtl. destruct hd. apply subst_vartype_false. assumption.
+    * inversion H.
 Qed.
 
 (* app_substs *)
