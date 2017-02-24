@@ -9,8 +9,9 @@ Open Scope core_scope.
 
 Import ListNotations.
 
-Require Import AST.
 Require Import Maps.
+Require Import LibTactics.
+Require Import AST.
 Require Import TypeInferencer.
 Require Import TypeChecker.
 
