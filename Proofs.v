@@ -192,10 +192,19 @@ Theorem typeinference_completeness :
     vartype T = false) ->
   (exists (t : t_expr), erase t e /\ typecheck env t T).
 Proof.
-  intros e env fv S C s Hti Hs.
+  introv Hti Hsub.
+  destruct Hsub as [sub [Hsol [Happsub Hvartype]]]. sort.
   induction e.
-  - admit.
-  - admit.
+  - exists (t_Num n). split.
+    * apply E_Num.
+    * inverts Hti. assert (Htnum: vartype TNum = false). { reflexivity. }
+      apply (app_substs_nontvar sub) in Htnum. rewrite Htnum in Happsub.
+      rewrite <- Happsub. apply TC_Num.
+  - exists (t_Bool b). split.
+    * apply E_Bool.
+    * inverts Hti. assert (Htbool: vartype TBool = false). { reflexivity. }
+      apply (app_substs_nontvar sub) in Htbool. rewrite Htbool in Happsub.
+      rewrite <- Happsub. apply TC_Bool.
   - admit.
   - admit.
   - admit.
