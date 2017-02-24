@@ -168,7 +168,7 @@ Proof.
     * apply SOL_Empty.
     * reflexivity.
   - inverts He. inverts Hti. inverts Htc.
-    rewrite H1 in H3. inverts H3.
+    rewrite H0 in H3. inverts H3.
     exists (@nil (id * type) % type). simpl. split.
     * apply SOL_Empty.
     * reflexivity.

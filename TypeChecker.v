@@ -20,34 +20,41 @@ Inductive typecheck : environment -> t_expr -> type -> Prop :=
   | TC_Bool: forall env b,
     typecheck env (t_Bool b) TBool
   | TC_Var: forall env x T,
-    env x = Some T -> typecheck env (t_Var x) T
+    env x = Some T ->
+    vartype T = false ->
+    typecheck env (t_Var x) T
 
   (* t_If *)
   | TC_If: forall env c e1 e2 T,
     typecheck env c TBool ->
     typecheck env e1 T ->
     typecheck env e2 T ->
+    vartype T = false ->
     typecheck env (t_If c e1 e2) T
 
   (* t_Fun *)
   | TC_Fun: forall env x x_T e e_T,
     typecheck (update env x x_T) e e_T ->
+    vartype (TFun x_T e_T) = false ->
     typecheck env (t_Fun x x_T e) (TFun x_T e_T)
 
   (* t_Call *)
   | TC_Call: forall env f e e_T T,
     typecheck env f (TFun e_T T) ->
     typecheck env e e_T ->
+    vartype (TFun e_T T) = false ->
     typecheck env (t_Call f e) T
 
   (* t_Cons *)
   | TC_Cons: forall env hd tl T,
     typecheck env hd T ->
     typecheck env tl (TList T) ->
+    vartype (TList T) = false ->
     typecheck env (t_Cons hd tl) (TList T)
 
   (* t_Nil *)
   | TC_Nil: forall env T,
+    vartype (TList T) = false ->
     typecheck env (t_Nil T) (TList T)
 
   (* t_Binop *)
