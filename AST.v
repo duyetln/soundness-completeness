@@ -8,23 +8,26 @@ Import ListNotations.
 
 Require Import Maps.
 
-Inductive type : Type :=
-  | TNum: type
-  | TBool: type
-  | TFun: type -> type -> type
-  | TList: type -> type
-  | TVar: id -> type. (* id from Maps.v *)
+(* concrete type used for type checker *)
+Inductive cont_type : Type :=
+  | cont_Num: cont_type
+  | cont_Bool: cont_type
+  | cont_Fun: cont_type -> cont_type -> cont_type
+  | cont_List: cont_type -> cont_type.
+
+(* inferred type used for type inferencer *)
+Inductive inft_type : Type :=
+  | inft_Num: inft_type
+  | inft_Bool: inft_type
+  | inft_Fun: inft_type -> inft_type -> inft_type
+  | inft_List: inft_type -> inft_type
+  | inft_Var: id -> inft_type. (* id from Maps.v *)
 
 Inductive binop : Type :=
   | op_Plus: binop
   | op_Minus: binop
-  | op_Mult: binop
-  | op_Div: binop
-  | op_Mod: binop
   | op_Eq: binop
   | op_Neq: binop
-  | op_Lt: binop
-  | op_Gt: binop
   | op_And: binop
   | op_Or: binop.
 
@@ -44,50 +47,55 @@ Inductive t_expr : Type := (* t_expr : typed expression *)
   | t_Bool: bool -> t_expr
   | t_Var: id -> t_expr
   | t_If: t_expr -> t_expr -> t_expr -> t_expr
-  | t_Fun: id -> type -> t_expr -> t_expr
+  | t_Fun: id -> cont_type -> t_expr -> t_expr
   | t_Call: t_expr -> t_expr -> t_expr
   | t_Binop: binop -> t_expr -> t_expr -> t_expr
   | t_Cons: t_expr -> t_expr -> t_expr
-  | t_Nil: type -> t_expr.
+  | t_Nil: cont_type -> t_expr.
 
-Definition environment := partial_map type.
-Definition constraint := list (type * type) % type.
-Definition substitution := list (id * type) % type.
+Definition tc_env := partial_map cont_type.
 
-Fixpoint vartype (t : type) : bool :=
-  match t with
-    | TNum | TBool => false
-    | TFun x e => orb (vartype x) (vartype e)
-    | TList l => vartype l
-    | TVar x => true
-  end.
+Definition ti_env := partial_map inft_type.
+Definition constr := list (inft_type * inft_type) % type.
+Definition substs := list (id * inft_type) % type.
 
-Inductive erase : t_expr -> ut_expr -> Prop :=
-  | E_Num: forall n, erase (t_Num n) (ut_Num n)
-  | E_Bool: forall b, erase (t_Bool b) (ut_Bool b)
-  | E_Var: forall x, erase (t_Var x) (ut_Var x)
-  | E_If: forall c c_e e1 e1_e e2 e2_e,
-    erase c c_e ->
-    erase e1 e1_e ->
-    erase e2 e2_e ->
-    erase (t_If c e1 e2) (ut_If c_e e1_e e2_e)
-  | E_Fun: forall x t e e_e,
-    vartype t = false ->
-    erase e e_e ->
-    erase (t_Fun x t e) (ut_Fun x e_e)
-  | E_Call: forall f f_e e e_e,
-    erase f f_e ->
-    erase e e_e ->
-    erase (t_Call f e) (ut_Call f_e e_e)
-  | E_Binop: forall op e1 e1_e e2 e2_e,
-    erase e1 e1_e ->
-    erase e2 e2_e ->
-    erase (t_Binop op e1 e2) (ut_Binop op e1_e e2_e)
-  | E_Cons: forall hd hd_e tl tl_e,
-    erase hd hd_e ->
-    erase tl tl_e ->
-    erase (t_Cons hd tl) (ut_Cons hd_e tl_e)
-  | E_Nil: forall t,
-    vartype t = false ->
-    erase (t_Nil t) ut_Nil.
+Inductive convert_type : inft_type -> cont_type -> Prop :=
+  | CT_Num: convert_type inft_Num cont_Num
+  | CT_Bool: convert_type inft_Bool cont_Bool
+  | CT_Fun:
+    forall x e x_t e_t,
+    convert_type x x_t ->
+    convert_type e e_t ->
+    convert_type (inft_Fun x e) (cont_Fun x_t e_t)
+  | CT_List:
+    forall l l_t,
+    convert_type l l_t ->
+    convert_type (inft_List l) (cont_List l_t).
+
+Inductive convert_expr : t_expr -> ut_expr -> Prop :=
+  | CE_Num: forall n, convert_expr (t_Num n) (ut_Num n)
+  | CE_Bool: forall b, convert_expr (t_Bool b) (ut_Bool b)
+  | CE_Var: forall x, convert_expr (t_Var x) (ut_Var x)
+  | CE_If: forall c c_e e1 e1_e e2 e2_e,
+    convert_expr c c_e ->
+    convert_expr e1 e1_e ->
+    convert_expr e2 e2_e ->
+    convert_expr (t_If c e1 e2) (ut_If c_e e1_e e2_e)
+  | CE_Fun: forall x t e e_e,
+    convert_expr e e_e ->
+    convert_expr (t_Fun x t e) (ut_Fun x e_e)
+  | CE_Call: forall f f_e e e_e,
+    convert_expr f f_e ->
+    convert_expr e e_e ->
+    convert_expr (t_Call f e) (ut_Call f_e e_e)
+  | CE_Binop: forall op e1 e1_e e2 e2_e,
+    convert_expr e1 e1_e ->
+    convert_expr e2 e2_e ->
+    convert_expr (t_Binop op e1 e2) (ut_Binop op e1_e e2_e)
+  | CE_Cons: forall hd hd_e tl tl_e,
+    convert_expr hd hd_e ->
+    convert_expr tl tl_e ->
+    convert_expr (t_Cons hd tl) (ut_Cons hd_e tl_e)
+  | CE_Nil: forall t,
+    convert_expr (t_Nil t) ut_Nil.
 
