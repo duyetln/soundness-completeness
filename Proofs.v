@@ -48,10 +48,12 @@ Proof.
   induction ct.
   - exists inft_Num. apply CT_Num.
   - exists inft_Bool. apply CT_Bool.
-  - destruct IHct1. destruct IHct2. exists (inft_Fun x x0). apply CT_Fun.
+  - destruct IHct1 as [it1 IHt1]. destruct IHct2 as [it2 IHt2].
+    exists (inft_Fun it1 it2). apply CT_Fun.
     * assumption.
     * assumption.
-  - destruct IHct. exists (inft_List x). apply CT_List. assumption.
+  - destruct IHct as [it' IHt].
+    exists (inft_List it'). apply CT_List. assumption.
 Qed.
 
 (* convert_expr *)
@@ -63,7 +65,7 @@ Qed.
 
 (* substs *)
 Lemma subst_nontvar : 
-  forall x y TI, (exists TC, convert_type TI TC) -> subst (x, y) TI = TI.
+  forall s TI, (exists TC, convert_type TI TC) -> subst s TI = TI.
 Proof.
   introv Hvt.
   induction TI.
@@ -119,26 +121,6 @@ Proof.
     { apply subst_form_any. }
   destruct H as [t'' H]. exists t''. rewrite H. reflexivity.
 Qed.
-(* Also works:
-Proof.
-  introv.
-  induction t.
-  - exists inft_Num. reflexivity.
-  - exists inft_Bool. reflexivity.
-  - destruct IHt1. destruct IHt2.
-    exists (inft_Fun x0 x1).
-    simpl. simpl in H. simpl in H0.
-    inverts H. inverts H0.
-    reflexivity.
-  - destruct IHt.
-    exists (inft_List x0).
-    simpl. simpl in H.
-    rewrite H. reflexivity.
-  - simpl. induction beq_id.
-    * exists y. reflexivity.
-    * exists (inft_Var i). reflexivity.
-Qed.
-*)
 
 Lemma subst_form_fun :
   forall s t1 t2, exists t1' t2', subst s (inft_Fun t1 t2) = inft_Fun t1' t2'.
@@ -155,7 +137,6 @@ Proof.
   reflexivity.
 Qed.
 
-
 (* app_substs *)
 Lemma app_substs_nontvar :
   forall TI s, (exists TC, convert_type TI TC) -> app_substs s TI = TI.
@@ -164,14 +145,13 @@ Proof.
   induction s as [|hd tl].
   - reflexivity.
   - destruct TI.
-    * simpl. rewrite IHtl. destruct hd. apply subst_nontvar. assumption.
-    * simpl. rewrite IHtl. destruct hd. apply subst_nontvar. assumption.
-    * simpl. rewrite IHtl. destruct hd. apply subst_nontvar. assumption.
-    * simpl. rewrite IHtl. destruct hd. apply subst_nontvar. assumption.
+    * simpl. rewrite IHtl. apply subst_nontvar. assumption.
+    * simpl. rewrite IHtl. apply subst_nontvar. assumption.
+    * simpl. rewrite IHtl. apply subst_nontvar. assumption.
+    * simpl. rewrite IHtl. apply subst_nontvar. assumption.
     * inverts H. inverts H0.
 Qed.
 
-(*s
 Lemma app_substs_form_num :
   forall s, app_substs s inft_Num = inft_Num.
 Proof.
@@ -188,7 +168,7 @@ Proof.
   assert (H: exists t, convert_type inft_Bool t).
     { exists cont_Bool. apply CT_Bool. }
   apply (app_substs_nontvar inft_Bool s). assumption.
-Qed. *)
+Qed.
 
 Lemma app_substs_form_list :
   forall s t, exists t', app_substs s (inft_List t) = inft_List t'.
@@ -196,8 +176,9 @@ Proof.
   introv.
   induction s as [|hd tl].
   - exists t. reflexivity.
-  - simpl. inverts IHtl. rewrite H.
-    destruct hd. apply (subst_form_list i i0 x).
+  - simpl. destruct IHtl as [t'' Htl].
+    rewrite Htl. apply (subst_form_list hd t'').
+Qed.
 Qed.
 
 (* ################################################################# *)
@@ -227,8 +208,8 @@ Proof.
   - inverts Hc. inverts Hti. inverts Htc.
     assert (Hconv: exists s', convert_type (app_substs s' S) T).
         { apply (Hvar i T S). split. assumption. assumption. }
-    destruct Hconv.
-    exists x. split.
+    destruct Hconv as [s' Hconv].
+    exists s'. split.
     * apply SOL_Empty.
     * assumption.
   - admit.
@@ -239,11 +220,12 @@ Proof.
   - inverts Hc. inverts Hti. inverts Htc.
     assert (HS': exists S', convert_type S' c).
       { apply exists_inf_type_to_cont_type. }
-    destruct HS'.
-    exists [(Id 0, x)]. simpl. split.
+    destruct HS' as [S' HS'].
+    exists [(Id 0, S')]. simpl. split.
     * apply SOL_Empty.
     * apply CT_List. assumption.
 Admitted.
+
 Theorem typeinference_completeness :
   forall
     (ti_env : ti_env) e fv S C T,
