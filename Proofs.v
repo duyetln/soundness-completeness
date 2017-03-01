@@ -84,8 +84,42 @@ Proof.
   - inverts Hvt. inverts H.
 Qed.
 
+Lemma subst_form_any :
+  forall s t, exists t', subst s t = t'.
+Proof.
+  introv.
+  induction t.
+  - exists inft_Num. reflexivity.
+  - exists inft_Bool. reflexivity.
+  - destruct IHt1 as [t1' H1]. destruct IHt2 as [t2' H2].
+    exists (inft_Fun t1' t2'). simpl.
+    rewrite H1, H2. reflexivity.
+  - destruct IHt as [t'' H].
+    exists (inft_List t''). simpl.
+    rewrite H. reflexivity.
+  - destruct s as [x y]. simpl. destruct beq_id.
+    * exists y. reflexivity.
+    * exists (inft_Var i). reflexivity.
+Qed.
+
+Lemma subst_form_num :
+  forall s, subst s inft_Num = inft_Num.
+Proof. reflexivity. Qed.
+
+Lemma subst_form_bool :
+  forall s, subst s inft_Bool = inft_Bool.
+Proof. reflexivity. Qed.
+
 Lemma subst_form_list :
-  forall x y t, exists t', subst (x, y) (inft_List t) = inft_List t'.
+  forall s t, exists t', subst s (inft_List t) = inft_List t'.
+Proof.
+  introv.
+  simpl.
+  assert (H: exists t'', subst s t = t'').
+    { apply subst_form_any. }
+  destruct H as [t'' H]. exists t''. rewrite H. reflexivity.
+Qed.
+(* Also works:
 Proof.
   introv.
   induction t.
@@ -103,6 +137,22 @@ Proof.
   - simpl. induction beq_id.
     * exists y. reflexivity.
     * exists (inft_Var i). reflexivity.
+Qed.
+*)
+
+Lemma subst_form_fun :
+  forall s t1 t2, exists t1' t2', subst s (inft_Fun t1 t2) = inft_Fun t1' t2'.
+Proof.
+  introv.
+  simpl.
+  assert (H1: exists t1'', subst s t1 = t1'').
+    { apply subst_form_any. }
+  assert (H2: exists t2'', subst s t2 = t2'').
+    { apply subst_form_any. }
+  destruct H1 as [t1'' H1]. destruct H2 as [t2'' H2].
+  rewrite H1, H2.
+  exists t1'' t2''.
+  reflexivity.
 Qed.
 
 
