@@ -179,6 +179,15 @@ Proof.
   - simpl. destruct IHtl as [t'' Htl].
     rewrite Htl. apply (subst_form_list hd t'').
 Qed.
+
+Lemma app_substs_form_fun :
+  forall s t1 t2, exists t1' t2', app_substs s (inft_Fun t1 t2) = inft_Fun t1' t2'.
+Proof.
+  introv.
+  induction s as [|hd tl].
+  - exists t1 t2. reflexivity.
+  - simpl. destruct IHtl as [t1'' [t2'' Htl]].
+    rewrite Htl. apply (subst_form_fun hd t1'' t2'').
 Qed.
 
 (* ################################################################# *)
