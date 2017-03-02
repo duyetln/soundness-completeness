@@ -54,7 +54,6 @@ Inductive t_expr : Type := (* t_expr : typed expression *)
   | t_Nil: cont_type -> t_expr.
 
 Definition tc_env := partial_map cont_type.
-
 Definition ti_env := partial_map inft_type.
 Definition constr := list (inft_type * inft_type) % type.
 Definition substs := list (id * inft_type) % type.

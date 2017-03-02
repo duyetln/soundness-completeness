@@ -40,8 +40,29 @@ Proof.
       + apply SOL_Empty.
 Qed.
 
+Lemma solution_constr_concat :
+  forall s C1 C2, solution s C1 /\ solution s C2 <-> solution s (C1 ++ C2).
+Proof.
+  introv. split.
+  - introv [HC1 HC2]. induction C1 as [|hd1 tl1].
+    * simpl. assumption.
+    * simpl. inverts HC1.
+      apply SOL_NotEmpty.
+      + assumption.
+      + apply (IHtl1 H3).
+  - introv H. induction C1 as [|hd1 tl1]; simpl in H.
+    * split.
+      + apply SOL_Empty.
+      + assumption.
+    * inverts H. apply IHtl1 in H4. inverts H4. split.
+      + apply SOL_NotEmpty.
+        { assumption. }
+        { assumption. }
+      + assumption.
+Qed.
+
 (* convert_type *)
-Lemma exists_inf_type_to_cont_type :
+Lemma exists_inft_type_to_cont_type :
   forall ct, exists it, convert_type it ct.
 Proof.
   introv.
@@ -170,6 +191,15 @@ Proof.
   apply (app_substs_nontvar inft_Bool s). assumption.
 Qed.
 
+Lemma app_substs_sub_list :
+  forall s t, app_substs s (inft_List t) = inft_List (app_substs s t).
+Proof.
+  introv.
+  induction s as [|hd tl].
+  - reflexivity.
+  - simpl. rewrite IHtl. simpl. reflexivity.
+Qed.
+
 Lemma app_substs_form_list :
   forall s t, exists t', app_substs s (inft_List t) = inft_List t'.
 Proof.
@@ -178,6 +208,22 @@ Proof.
   - exists t. reflexivity.
   - simpl. destruct IHtl as [t'' Htl].
     rewrite Htl. apply (subst_form_list hd t'').
+Qed.
+(*
+Proof.
+  introv.
+  rewrite (app_substs_sub_list s t).
+  exists (app_substs s t). reflexivity.
+Qed.
+*)
+
+Lemma app_substs_sub_fun :
+  forall s t1 t2, app_substs s (inft_Fun t1 t2) = inft_Fun (app_substs s t1) (app_substs s t2).
+Proof.
+  introv.
+  induction s as [|hd tl].
+  - reflexivity.
+  - simpl. rewrite IHtl. simpl. reflexivity.
 Qed.
 
 Lemma app_substs_form_fun :
@@ -189,6 +235,14 @@ Proof.
   - simpl. destruct IHtl as [t1'' [t2'' Htl]].
     rewrite Htl. apply (subst_form_fun hd t1'' t2'').
 Qed.
+(*
+Proof.
+  introv.
+  rewrite (app_substs_sub_fun s t1 t2).
+  exists (app_substs s t1) (app_substs s t2). reflexivity.
+Qed.
+*)
+
 
 (* ################################################################# *)
 (* Main goals *)
@@ -228,7 +282,7 @@ Proof.
   - admit.
   - inverts Hc. inverts Hti. inverts Htc.
     assert (HS': exists S', convert_type S' c).
-      { apply exists_inf_type_to_cont_type. }
+      { apply exists_inft_type_to_cont_type. }
     destruct HS' as [S' HS'].
     exists [(Id 0, S')]. simpl. split.
     * apply SOL_Empty.
