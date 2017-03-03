@@ -69,30 +69,30 @@ Inductive typeinf : ti_env -> nat -> ut_expr -> (nat * inft_type * constr) % typ
     forall env fv op
       e1 e1_fv e1_C e1_T
       e2 e2_fv e2_C e2_T,
-    op = op_Plus \/
-    op = op_Minus ->
     typeinf env fv e1 (e1_fv, e1_T, e1_C) ->
     typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
+    op = op_Plus \/
+    op = op_Minus ->
     typeinf env fv (ut_Binop op e1 e2) (e2_fv, inft_Num, e2_C++ e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])
 
   | TI_Binop_nnb:
     forall env fv op
       e1 e1_fv e1_C e1_T
       e2 e2_fv e2_C e2_T,
-    op = op_Eq \/
-    op = op_Neq ->
     typeinf env fv e1 (e1_fv, e1_T, e1_C) ->
     typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
+    op = op_Eq \/
+    op = op_Neq ->
     typeinf env fv (ut_Binop op e1 e2) (e2_fv, inft_Bool, e2_C++ e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])
 
   | TI_Binop_bbb:
     forall env fv op
       e1 e1_fv e1_C e1_T
       e2 e2_fv e2_C e2_T,
-    op = op_And \/
-    op = op_Or ->
     typeinf env fv e1 (e1_fv, e1_T, e1_C) ->
     typeinf env e1_fv e2 (e2_fv, e2_T, e2_C) ->
+    op = op_And \/
+    op = op_Or ->
     typeinf env fv (ut_Binop op e1 e2) (e2_fv, inft_Bool, e2_C++ e1_C ++ [(e2_T, inft_Bool); (e1_T, inft_Bool)]).
 
 Fixpoint subst (s : (id * inft_type) % type) (t : inft_type) : inft_type :=

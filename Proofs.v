@@ -270,7 +270,7 @@ Proof.
     * apply CT_Bool.
   - inverts Hc. inverts Hti. inverts Htc.
     assert (Hconv: exists s', convert_type (app_substs s' S) T).
-        { apply (Hvar i T S). split. assumption. assumption. }
+        { apply (Hvar i T S). split; assumption. }
     destruct Hconv as [s' Hconv].
     exists s'. split.
     * apply SOL_Empty.
@@ -300,7 +300,7 @@ Proof.
   induction e;
   introv Hti Hsub Henv;
   destruct Hsub as [sub [Hsubsol Hsubconv]];
-  inverts Hti; sort.
+  inverts Hti as Htie1 Htie2 Htie3; sort.
   - exists (t_Num n). split.
     * apply CE_Num.
     * rewrite app_substs_form_num in Hsubconv.
@@ -324,6 +324,42 @@ Proof.
   - admit.
   - admit.
   - admit.
+  (* ut_Cons *)
+  - (* solution sub hd_C *)
+    assert (Hsol_hd_C: solution sub hd_C).
+      { apply (solution_constr_concat sub hd_C [(tl_T, inft_List hd_T)]).
+        apply (solution_constr_concat sub tl_C (hd_C ++ [(tl_T, inft_List hd_T)])).
+        assumption. }
+    (* solution sub tl_C *)
+    assert (Hsol_tl_C: solution sub tl_C).
+      { apply (solution_constr_concat sub tl_C (hd_C ++ [(tl_T, inft_List hd_T)])).
+        assumption. }
+    (* convert_type (app_substs sub hd_T) l_t *)
+    assert (Hsol_tl_T_hd_T: solution sub [(tl_T, inft_List hd_T)]).
+      { apply (solution_constr_concat sub hd_C [(tl_T, inft_List hd_T)]).
+        apply (solution_constr_concat sub tl_C (hd_C ++ [(tl_T, inft_List hd_T)])).
+        assumption. }
+    inverts Hsol_tl_T_hd_T.
+    rewrite (app_substs_sub_list sub hd_T) in Hsubconv. inverts keep Hsubconv as Hsubsts_hd_T.
+    (* convert_type (app_substs sub tl_T) (cont_List l_t) *)
+    assert (Hsubsts_lt_T: convert_type (app_substs sub tl_T) (cont_List l_t)).
+      { rewrite H2. rewrite (app_substs_sub_list sub hd_T). apply CT_List. assumption. }
+    (* exists s, solution s hd_C /\ convert_type (app_substs s hd_T) l_t *)
+    assert (Hsube1: exists s, solution s hd_C /\ convert_type (app_substs s hd_T) l_t).
+      { exists sub. split; assumption. }
+    (* exists s, solution s tl_C /\ convert_type (app_substs s tl_T) (cont_List l_t) *)
+    assert (Hsube2: exists s, solution s tl_C /\ convert_type (app_substs s tl_T) (cont_List l_t)).
+      { exists sub. split; assumption. }
+    (* exists t, convert_expr t e1 /\ typecheck tc_env t l_t *)
+    assert (He1: exists t, convert_expr t e1 /\ typecheck tc_env t l_t).
+      { apply (IHe1 fv1 hd_fv hd_T hd_C l_t Htie1 Hsube1 Henv). }
+    (* exists t, convert_expr t e2 /\ typecheck tc_env t (cont_List l_t) *)
+    assert (He2: exists t, convert_expr t e2 /\ typecheck tc_env t (cont_List l_t) ).
+      { apply (IHe2 hd_fv fv2 tl_T tl_C (cont_List l_t) Htie2 Hsube2 Henv). }
+    destruct He1 as [e1' [Hce1 Htc1]]. destruct He2 as [e2' [Hce2 Htc2]].
+    exists (t_Cons e1' e2'). split.
+      * apply CE_Cons; assumption.
+      * apply TC_Cons; assumption.
   (* ut_Nil *)
   - assert (Hflist: exists t', app_substs sub (inft_List (inft_Var (Id fv1))) = inft_List t').
       { apply (app_substs_form_list sub (inft_Var (Id fv1))). }
