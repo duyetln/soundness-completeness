@@ -291,42 +291,44 @@ Admitted.
 
 Theorem typeinference_completeness :
   forall
-    (ti_env : ti_env) e fv S C T,
-  typeinf ti_env 0 e (fv, S, C) ->
+    (ti_env : ti_env) (tc_env : tc_env) e fv1 fv2 S C T,
+  typeinf ti_env fv1 e (fv2, S, C) ->
   (exists s, solution s C /\ convert_type (app_substs s S) T) ->
-  (exists t tc_env, convert_expr t e /\ typecheck tc_env t T).
+  (forall i TI TC, ti_env i = Some TI /\ (exists s', convert_type (app_substs s' TI) TC) -> tc_env i = Some TC) ->
+  (exists t, convert_expr t e /\ typecheck tc_env t T).
 Proof.
-  introv Hti Hsub.
-  destruct Hsub as [sub [Hsubsol Hsubconv]]. sort.
-  induction e.
-  - exists (t_Num n) (@empty cont_type). split.
+  induction e;
+  introv Hti Hsub Henv;
+  destruct Hsub as [sub [Hsubsol Hsubconv]];
+  inverts Hti; sort.
+  - exists (t_Num n). split.
     * apply CE_Num.
-    * inverts Hti.
-      assert (Htnum: exists tc, convert_type inft_Num tc).
-        { exists cont_Num. apply CT_Num. }
-      apply (app_substs_nontvar inft_Num sub) in Htnum.
-      rewrite Htnum in Hsubconv. inverts Hsubconv. apply TC_Num.
-  - exists (t_Bool b) (@empty cont_type). split.
+    * rewrite app_substs_form_num in Hsubconv.
+      inverts Hsubconv. apply TC_Num.
+  - exists (t_Bool b). split.
     * apply CE_Bool.
-    * inverts Hti.
-      assert (Htbool: exists tc, convert_type inft_Bool tc).
-        { exists cont_Bool. apply CT_Bool. }
-      apply (app_substs_nontvar inft_Bool sub) in Htbool.
-      rewrite Htbool in Hsubconv. inverts Hsubconv. apply TC_Bool.
-  - exists (t_Var i) (update (@empty cont_type) i T). split.
+    * rewrite app_substs_form_bool in Hsubconv.
+      inverts Hsubconv. apply TC_Bool.
+  - exists (t_Var i). split.
     * apply CE_Var.
-    * apply TC_Var. apply update_eq.
+    * apply TC_Var. apply (Henv i S T). split.
+      + assumption.
+      + exists sub. assumption.
+  (* ut_If *)
+  - admit.
+  (* ut_Fun *)
+  - admit.
+  (* ut_Call *)
+  - admit.
+  (* ut_Binop *)
   - admit.
   - admit.
   - admit.
-  - admit.
-  - admit.
-  - inverts Hti.
-    assert (Hflist: exists t', app_substs sub (inft_List (inft_Var (Id 0))) = inft_List t').
-      { apply (app_substs_form_list sub (inft_Var (Id 0))). }
-    inverts Hflist. rewrite H in Hsubconv.
-    inverts Hsubconv.
-    exists (t_Nil l_t) (@empty cont_type). split.
+  (* ut_Nil *)
+  - assert (Hflist: exists t', app_substs sub (inft_List (inft_Var (Id fv1))) = inft_List t').
+      { apply (app_substs_form_list sub (inft_Var (Id fv1))). }
+    inverts Hflist. rewrite H in Hsubconv. inverts Hsubconv.
+    exists (t_Nil l_t). split.
     * apply CE_Nil.
     * apply TC_Nil.
 Admitted.
