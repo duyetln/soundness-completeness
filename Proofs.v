@@ -301,21 +301,85 @@ Proof.
   introv Hti Hsub Henv;
   destruct Hsub as [sub [Hsubsol Hsubconv]];
   inverts Hti as Htie1 Htie2 Htie3; sort.
+  (* ut_Num *)
   - exists (t_Num n). split.
     * apply CE_Num.
     * rewrite app_substs_form_num in Hsubconv.
       inverts Hsubconv. apply TC_Num.
+  (* ut_Bool *)
   - exists (t_Bool b). split.
     * apply CE_Bool.
     * rewrite app_substs_form_bool in Hsubconv.
       inverts Hsubconv. apply TC_Bool.
+  (* ut_Var *)
   - exists (t_Var i). split.
     * apply CE_Var.
     * apply TC_Var. apply (Henv i S T). split.
       + assumption.
       + exists sub. assumption.
   (* ut_If *)
-  - admit.
+  - (* solution sub c_C *)
+    assert (Hsol_c_C: solution sub c_C).
+      { apply (solution_constr_concat sub c_C [(S, e2_T); (c_T, inft_Bool)]).
+        apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        assumption. }
+    (* solution sub e1_C *)
+    assert (Hsol_e1_C: solution sub e1_C).
+      { apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        assumption. }
+    (* solution sub e2_C *)
+    assert (Hsol_e2_C: solution sub e2_C).
+      { apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        assumption. }
+    (* convert_type (app_substs sub c_T) cont_Bool *)
+    assert (Hsol_c_T: solution sub [(c_T, inft_Bool)]).
+      { apply (solution_constr_concat sub [(S, e2_T)] [(c_T, inft_Bool)]).
+        apply (solution_constr_concat sub c_C [(S, e2_T); (c_T, inft_Bool)]).
+        apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        assumption. }
+    inverts Hsol_c_T as Hc_bool.
+    assert (Hsubsts_c_T: convert_type (app_substs sub c_T) cont_Bool).
+      { rewrite Hc_bool, (app_substs_form_bool sub). apply CT_Bool. }
+    (* convert_type (app_substs sub S) T *)
+    assert (Hsubsts_S: convert_type (app_substs sub S) T).
+      { assumption. }
+    (* convert_type (app_substs sub e2_T) T *)
+    assert (Hsol_e2_T: solution sub [(S, e2_T)]).
+      { apply (solution_constr_concat sub [(S, e2_T)] [(c_T, inft_Bool)]).
+        apply (solution_constr_concat sub c_C [(S, e2_T); (c_T, inft_Bool)]).
+        apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
+        assumption. }
+    inverts Hsol_e2_T as HS_e2_T.
+    assert (Hsubsts_e2_T: convert_type (app_substs sub e2_T) T).
+      { rewrite <- HS_e2_T. assumption. }
+    (* exists s, solution s c_C /\ convert_type (app_substs s c_T) cont_Bool *)
+    assert (Hsubc: exists s, solution s c_C /\ convert_type (app_substs s c_T) cont_Bool).
+      { exists sub. split; assumption. }
+    (* exists s, solution s e1_C /\ convert_type (app_substs s S) T *)
+    assert (Hsube1: exists s, solution s e1_C /\ convert_type (app_substs s S) T).
+      { exists sub. split; assumption. }
+    (* exists s, solution s e2_C /\ convert_type (app_substs s e2_T) T *)
+    assert (Hsube2: exists s, solution s e2_C /\ convert_type (app_substs s e2_T) T).
+      { exists sub. split; assumption. }
+    (* exists t, convert_expr t e1 /\ typecheck tc_env t cont_Bool *)
+    assert (Hc: exists t, convert_expr t e1 /\ typecheck tc_env t cont_Bool).
+      { apply (IHe1 fv1 c_fv c_T c_C cont_Bool Htie1 Hsubc Henv). }
+    (* exists t, convert_expr t e2 /\ typecheck tc_env t T *)
+    assert (He1: exists t, convert_expr t e2 /\ typecheck tc_env t T).
+      { apply (IHe2 c_fv e1_fv S e1_C T Htie2 Hsube1 Henv). }
+    (* exists t, convert_expr t e3 /\ typecheck tc_env t T *)
+    assert (He2: exists t, convert_expr t e3 /\ typecheck tc_env t T).
+      { apply (IHe3 e1_fv fv2 e2_T e2_C T Htie3 Hsube2 Henv). }
+    destruct Hc as [c' [Hce Htc]].
+    destruct He1 as [e1' [Hce1 Htc1]].
+    destruct He2 as [e2' [Hce2 Htc2]].
+    exists (t_If c' e1' e2'). split.
+      * apply CE_If; assumption.
+      * apply TC_If; assumption.
   (* ut_Fun *)
   - admit.
   (* ut_Call *)
