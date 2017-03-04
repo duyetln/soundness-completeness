@@ -258,8 +258,8 @@ Theorem typeinference_soundness :
   (forall i TC TI, tc_env i = Some TC /\ ti_env i = Some TI -> (exists s', convert_type (app_substs s' TI) TC)) ->
   (exists s, solution s C /\ convert_type (app_substs s S) T).
 Proof.
+  induction t;
   introv Hc Htc Hti Hvar.
-  destruct t.
   - inverts Hc. inverts Hti. inverts Htc.
     exists (@nil (id * inft_type) % type). simpl. split.
     * apply SOL_Empty.
@@ -278,7 +278,7 @@ Proof.
   - admit.
   - admit.
   - admit.
-  - admit.
+  - inverts Hc. inverts Hti; admit.
   - admit.
   - inverts Hc. inverts Hti. inverts Htc.
     assert (HS': exists S', convert_type S' c).
