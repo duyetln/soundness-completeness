@@ -8,20 +8,12 @@ Import ListNotations.
 
 Require Import Maps.
 
-(* concrete type used for type checker *)
-Inductive cont_type : Type :=
-  | cont_Num: cont_type
-  | cont_Bool: cont_type
-  | cont_Fun: cont_type -> cont_type -> cont_type
-  | cont_List: cont_type -> cont_type.
-
-(* inferred type used for type inferencer *)
-Inductive inft_type : Type :=
-  | inft_Num: inft_type
-  | inft_Bool: inft_type
-  | inft_Fun: inft_type -> inft_type -> inft_type
-  | inft_List: inft_type -> inft_type
-  | inft_Var: id -> inft_type. (* id from Maps.v *)
+Inductive t_type : Type :=
+  | TNum: t_type
+  | TBool: t_type
+  | TFun: t_type -> t_type -> t_type
+  | TList: t_type -> t_type
+  | TVar: id -> t_type. (* id from Maps.v *)
 
 Inductive binop : Type :=
   | op_Plus: binop
@@ -47,29 +39,28 @@ Inductive t_expr : Type := (* t_expr : typed expression *)
   | t_Bool: bool -> t_expr
   | t_Var: id -> t_expr
   | t_If: t_expr -> t_expr -> t_expr -> t_expr
-  | t_Fun: id -> cont_type -> t_expr -> t_expr
+  | t_Fun: id -> t_type -> t_expr -> t_expr
   | t_Call: t_expr -> t_expr -> t_expr
   | t_Binop: binop -> t_expr -> t_expr -> t_expr
   | t_Cons: t_expr -> t_expr -> t_expr
-  | t_Nil: cont_type -> t_expr.
+  | t_Nil: t_type -> t_expr.
 
-Definition tc_env := partial_map cont_type.
-Definition ti_env := partial_map inft_type.
-Definition constr := list (inft_type * inft_type) % type.
-Definition substs := list (id * inft_type) % type.
+Definition t_env := partial_map t_type.
+Definition constr := list (t_type * t_type) % type.
+Definition substs := list (id * t_type) % type.
 
-Inductive convert_type : inft_type -> cont_type -> Prop :=
-  | CT_Num: convert_type inft_Num cont_Num
-  | CT_Bool: convert_type inft_Bool cont_Bool
+Inductive concrete_type : t_type -> Prop :=
+  | CT_Num: concrete_type TNum
+  | CT_Bool: concrete_type TBool
   | CT_Fun:
-    forall x e x_t e_t,
-    convert_type x x_t ->
-    convert_type e e_t ->
-    convert_type (inft_Fun x e) (cont_Fun x_t e_t)
+    forall x e,
+    concrete_type x ->
+    concrete_type e ->
+    concrete_type (TFun x e)
   | CT_List:
-    forall l l_t,
-    convert_type l l_t ->
-    convert_type (inft_List l) (cont_List l_t).
+    forall l,
+    concrete_type l  ->
+    concrete_type (TList l).
 
 Inductive convert_expr : t_expr -> ut_expr -> Prop :=
   | CE_Num: forall n, convert_expr (t_Num n) (ut_Num n)
