@@ -12,63 +12,63 @@ Require Import AST.
 Require Import Maps.
 
 Inductive typecheck : t_env -> t_expr -> t_type -> Prop :=
-  (* t_Num *)
-  (* t_Bool *)
-  (* t_Var *)
+  (* ENum *)
+  (* EBool *)
+  (* EVar *)
   | TC_Num: forall env n,
-    typecheck env (t_Num n) TNum
+    typecheck env (ENum n) TNum
   | TC_Bool: forall env b,
-    typecheck env (t_Bool b) TBool
+    typecheck env (EBool b) TBool
   | TC_Var: forall env x T,
     env x = Some T ->
-    typecheck env (t_Var x) T
+    typecheck env (EVar x) T
 
-  (* t_If *)
+  (* EIf *)
   | TC_If: forall env c e1 e2 T,
     typecheck env c TBool ->
     typecheck env e1 T ->
     typecheck env e2 T ->
-    typecheck env (t_If c e1 e2) T
+    typecheck env (EIf c e1 e2) T
 
-  (* t_Fun *)
+  (* EFun *)
   | TC_Fun: forall env x x_T e e_T,
     typecheck (update env x x_T) e e_T ->
-    typecheck env (t_Fun x x_T e) (TFun x_T e_T)
+    typecheck env (EFun x x_T e) (TFun x_T e_T)
 
-  (* t_Call *)
+  (* ECall *)
   | TC_Call: forall env f e e_T T,
     typecheck env f (TFun e_T T) ->
     typecheck env e e_T ->
-    typecheck env (t_Call f e) T
+    typecheck env (ECall f e) T
 
-  (* t_Cons *)
+  (* ECons *)
   | TC_Cons: forall env hd tl T,
     typecheck env hd T ->
     typecheck env tl (TList T) ->
-    typecheck env (t_Cons hd tl) (TList T)
+    typecheck env (ECons hd tl) (TList T)
 
-  (* t_Nil *)
+  (* ENil *)
   | TC_Nil: forall env T,
-    typecheck env (t_Nil T) (TList T)
+    typecheck env (ENil T) (TList T)
 
-  (* t_Binop *)
+  (* EBinop *)
   | TC_Binop_nnn: forall env op e1 e2,
-    op = op_Plus \/
-    op = op_Minus ->
+    op = OpPlus \/
+    op = OpMinus ->
     typecheck env e1 TNum ->
     typecheck env e2 TNum ->
-    typecheck env (t_Binop op e1 e2) TNum
+    typecheck env (EBinop op e1 e2) TNum
 
   | TC_Binop_nnb: forall env op e1 e2,
-    op = op_Eq \/
-    op = op_Neq ->
+    op = OpEq \/
+    op = OpNeq ->
     typecheck env e1 TNum ->
     typecheck env e2 TNum ->
-    typecheck env (t_Binop op e1 e2) TBool
+    typecheck env (EBinop op e1 e2) TBool
 
   | TC_Binop_bbb: forall env op e1 e2,
-    op = op_And \/
-    op = op_Or ->
+    op = OpAnd \/
+    op = OpOr ->
     typecheck env e1 TBool ->
     typecheck env e2 TBool ->
-    typecheck env (t_Binop op e1 e2) TBool.
+    typecheck env (EBinop op e1 e2) TBool.
