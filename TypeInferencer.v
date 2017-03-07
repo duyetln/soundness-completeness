@@ -124,17 +124,6 @@ Fixpoint app_sub_to_expr (s : substs) (e : t_expr) : t_expr :=
       ENil (app_sub_to_type s T)
   end.
 
-Inductive t_expr : Type := (* t_expr : typed expression *)
-  | ENum: nat -> t_expr
-  | EBool: bool -> t_expr
-  | EVar: id -> t_expr
-  | EIf: t_expr -> t_expr -> t_expr -> t_expr
-  | EFun: id -> t_type -> t_expr -> t_expr
-  | ECall: t_expr -> t_expr -> t_expr
-  | EBinop: binop -> t_expr -> t_expr -> t_expr
-  | ECons: t_expr -> t_expr -> t_expr
-  | ENil: t_type -> t_expr.
-
 Definition app_sub_to_env (s : substs) (env : t_env) : id -> option t_type :=
   (fun i =>
     match env i with

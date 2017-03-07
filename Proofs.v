@@ -93,11 +93,26 @@ Theorem typeinference_soundness :
     tc_env t T,
     typeinf ti_env fv1 e (fv2, S, C) ->
     satisfy sub C ->
+    app_sub_to_expr sub e = t ->
     app_sub_to_type sub S = T ->
     app_sub_to_env sub ti_env = tc_env ->
-    app_sub_to_expr sub e = t ->
     typecheck tc_env t T.
 Proof.
+  induction e; introv Hti Hsat Hexpr Htype Henv; sort.
+  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
+    rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Num.
+  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
+    rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Bool.
+  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
+    rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Var.
+    unfold app_sub_to_env. rewrite H3. reflexivity.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
+    rewrite <- Hexpr, <- Htype. apply TC_Nil.
 Admitted.
 
 (*
