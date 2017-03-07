@@ -3,6 +3,7 @@ Require Import List.
 Require Import Nat.
 Require Import Bool.
 Require Import Arith.
+Require Import FunctionalExtensionality.
 
 Open Scope string_scope.
 Open Scope list_scope.
@@ -19,12 +20,31 @@ Require Import TypeChecker.
 (* ################################################################# *)
 (* Small proofs *)
 
-(* app_substs *)
+(* app_sub_to_type *)
 Example app_sub_to_type_ex1 : app_sub_to_type (update empty_substs (Id 1) TNum) (TFun (TVar (Id 1)) TNum) = TFun TNum TNum.
 Proof. reflexivity. Qed.
 
 Example app_sub_to_type_ex2 : app_sub_to_type (update (update empty_substs (Id 1) TNum) (Id 2) TBool) (TFun (TVar (Id 1)) (TVar (Id 2))) = TFun TNum TBool.
 Proof. reflexivity. Qed.
+
+Lemma app_sub_to_concrete_type :
+  forall s T, concrete_type T -> app_sub_to_type s T = T.
+Proof.
+  introv Hvt.
+  induction T.
+  - reflexivity.
+  - reflexivity.
+  - inverts Hvt. simpl.
+    apply IHT1 in H1.
+    apply IHT2 in H2.
+    rewrite H1, H2.
+    reflexivity.
+  - inverts Hvt. simpl.
+    apply IHT in H0.
+    rewrite H0.
+    reflexivity.
+  - inverts Hvt.
+Qed.
 
 (* satisfy *)
 Example satisfy_ex1 :
@@ -62,24 +82,20 @@ Proof.
       + assumption.
 Qed.
 
-(* substs *)
-Lemma app_sub_to_concrete_type :
-  forall s T, concrete_type T -> app_sub_to_type s T = T.
+(* app_sub_to_env *)
+Lemma app_sub_to_update_env :
+  forall sub env i t,
+    app_sub_to_env sub (update env i t) = update (app_sub_to_env sub env) i (app_sub_to_type sub t).
 Proof.
-  introv Hvt.
-  induction T.
+  intros.
+  unfold app_sub_to_env.
+  unfold update.
+  unfold t_update.
+  apply functional_extensionality_dep.
+  intro x'.
+  destruct (beq_id i x').
   - reflexivity.
   - reflexivity.
-  - inverts Hvt. simpl.
-    apply IHT1 in H1.
-    apply IHT2 in H2.
-    rewrite H1, H2.
-    reflexivity.
-  - inverts Hvt. simpl.
-    apply IHT in H0.
-    rewrite H0.
-    reflexivity.
-  - inverts Hvt.
 Qed.
 
 
@@ -88,9 +104,9 @@ Qed.
 
 Theorem typeinference_soundness :
   forall
-    ti_env e S C fv1 fv2
+    e ti_env S C fv1 fv2
     sub
-    tc_env t T,
+    t tc_env T,
     typeinf ti_env fv1 e (fv2, S, C) ->
     satisfy sub C ->
     app_sub_to_expr sub e = t ->
@@ -146,15 +162,15 @@ Proof.
     simpl in Happsub_S_e2_T.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub c_T) *)
     assert (Hc: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub c_T)).
-      { apply (IHe1 c_T c_C fv1 c_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub c_T));
+      { apply (IHe1 ti_env c_T c_C fv1 c_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub c_T));
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub S) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub S)).
-      { apply (IHe2 S e1_C c_fv e1_fv sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub S));
+      { apply (IHe2 ti_env S e1_C c_fv e1_fv sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub S));
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e3) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e3) (app_sub_to_type sub e2_T)).
-      { apply (IHe3 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e3) (app_sub_to_type sub e2_T));
+      { apply (IHe3 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e3) tc_env (app_sub_to_type sub e2_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_If.
       * rewrite <- Happsub_c_T_TBool. assumption.
@@ -162,7 +178,13 @@ Proof.
       * rewrite Happsub_S_e2_T. assumption.
 
   (* EFun *)
-  - admit.
+  - (* typecheck (update ti_env i t) (app_sub_to_expr sub e) (app_sub_to_type sub e_T) *)
+    assert (He: typecheck (app_sub_to_env sub (update ti_env i t)) (app_sub_to_expr sub e) (app_sub_to_type sub e_T)).
+      { apply (IHe (update ti_env i t) e_T C fv1 fv2 sub (app_sub_to_expr sub e) (app_sub_to_env sub (update ti_env i t)) (app_sub_to_type sub e_T));
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_Fun.
+    rewrite <- Henv, <- (app_sub_to_update_env sub ti_env i t).
+    assumption.
 
   (* ECall *)
   - admit.
@@ -196,11 +218,11 @@ Proof.
     simpl in Happsub_e2_T_TNum.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
-      { apply (IHe1 e1_T e1_C fv1 e1_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T)).
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
-      { apply (IHe2 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T)).
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Binop_nnn.
       * assumption.
@@ -234,11 +256,11 @@ Proof.
     simpl in Happsub_e2_T_TNum.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
-      { apply (IHe1 e1_T e1_C fv1 e1_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T)).
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
-      { apply (IHe2 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T)).
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Binop_nnb.
       * assumption.
@@ -272,11 +294,11 @@ Proof.
     simpl in Happsub_e2_T_TBool.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
-      { apply (IHe1 e1_T e1_C fv1 e1_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T)).
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
-      { apply (IHe2 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T)).
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Binop_bbb.
       * assumption.
@@ -301,11 +323,11 @@ Proof.
     simpl in Happsub_tl_T_hd_T.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub hd_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub hd_T)).
-      { apply (IHe1 hd_T hd_C fv1 hd_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub hd_T));
+      { apply (IHe1 ti_env hd_T hd_C fv1 hd_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub hd_T));
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub (TList hd_T)) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub tl_T)).
-      { apply (IHe2 tl_T tl_C hd_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub tl_T));
+      { apply (IHe2 ti_env tl_T tl_C hd_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub tl_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Cons.
       * assumption.

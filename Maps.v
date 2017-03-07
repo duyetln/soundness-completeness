@@ -102,8 +102,8 @@ Lemma t_update_shadow : forall A (m: total_map A) v1 v2 x,
 Proof.
   intros A m v1 v2 x.
   unfold t_update.
-  apply functional_extensionality_dep. intros x0.
-  destruct (beq_id x x0) eqn:H.
+  apply functional_extensionality_dep. intros x'.
+  destruct (beq_id x x') eqn:H.
   - reflexivity.
   - reflexivity.
 Qed.
@@ -152,7 +152,6 @@ Proof.
     * reflexivity.
 Qed.
 
-
 (* Partial maps *)
 
 Definition partial_map (A:Type) := total_map (option A).
@@ -187,7 +186,8 @@ Theorem update_neq : forall (X:Type) v x1 x2
 Proof.
   intros X v x1 x2 m H.
   unfold update. rewrite t_update_neq. reflexivity.
-  apply H. Qed.
+  apply H.
+Qed.
 
 Lemma update_shadow : forall A (m: partial_map A) v1 v2 x,
   update (update m x v1) x v2 = update m x v2.
