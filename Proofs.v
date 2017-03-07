@@ -20,16 +20,16 @@ Require Import TypeChecker.
 (* Small proofs *)
 
 (* app_substs *)
-Example app_substs_ex1 : app_substs [(Id 1, TNum)] (TFun (TVar (Id 1)) TNum) = TFun TNum TNum.
+Example app_sub_to_type_ex1 : app_sub_to_type (update empty_substs (Id 1) TNum) (TFun (TVar (Id 1)) TNum) = TFun TNum TNum.
 Proof. reflexivity. Qed.
 
-Example app_substs_ex2 : app_substs [(Id 1, TNum);(Id 2, TBool)] (TFun (TVar (Id 1)) (TVar (Id 2))) = TFun TNum TBool.
+Example app_sub_to_type_ex2 : app_sub_to_type (update (update empty_substs (Id 1) TNum) (Id 2) TBool) (TFun (TVar (Id 1)) (TVar (Id 2))) = TFun TNum TBool.
 Proof. reflexivity. Qed.
 
-(* solution *)
-Example solution_ex1 :
-  solution
-    [(Id 1, TNum); (Id 2, TNum); (Id 3, TNum)]
+(* satisfy *)
+Example satisfy_ex1 :
+  satisfy
+    (update (update (update empty_substs (Id 1) TNum) (Id 2) TNum) (Id 3) TNum)
     [(TList (TVar (Id 1)), TList TNum); (TList (TVar (Id 3)), TList TNum); (TVar (Id 2), TNum)].
 Proof.
   apply SOL_NotEmpty.
@@ -41,8 +41,8 @@ Proof.
       + apply SOL_Empty.
 Qed.
 
-Lemma solution_constr_concat :
-  forall s C1 C2, solution s C1 /\ solution s C2 <-> solution s (C1 ++ C2).
+Lemma satisfy_constr_concat :
+  forall s C1 C2, satisfy s C1 /\ satisfy s C2 <-> satisfy s (C1 ++ C2).
 Proof.
   introv. split.
   - introv [HC1 HC2]. induction C1 as [|hd1 tl1].
@@ -62,27 +62,9 @@ Proof.
       + assumption.
 Qed.
 
-(*
-(* convert_type *)
-Lemma exists_inft_type_to_cont_type :
-  forall ct, exists it, convert_type it ct.
-Proof.
-  introv.
-  induction ct.
-  - exists inft_Num. apply CT_Num.
-  - exists inft_Bool. apply CT_Bool.
-  - destruct IHct1 as [it1 IHt1]. destruct IHct2 as [it2 IHt2].
-    exists (inft_Fun it1 it2). apply CT_Fun.
-    * assumption.
-    * assumption.
-  - destruct IHct as [it' IHt].
-    exists (inft_List it'). apply CT_List. assumption.
-Qed.
-*)
-
 (* substs *)
-Lemma subst_concrete_type :
-  forall s T, concrete_type T -> subst s T = T.
+Lemma app_sub_to_concrete_type :
+  forall s T, concrete_type T -> app_sub_to_type s T = T.
 Proof.
   introv Hvt.
   induction T.
@@ -100,179 +82,25 @@ Proof.
   - inverts Hvt.
 Qed.
 
-Lemma subst_form_any :
-  forall s t, exists t', subst s t = t'.
-Proof.
-  introv.
-  induction t.
-  - exists TNum. reflexivity.
-  - exists TBool. reflexivity.
-  - destruct IHt1 as [t1' H1]. destruct IHt2 as [t2' H2].
-    exists (TFun t1' t2'). simpl.
-    rewrite H1, H2. reflexivity.
-  - destruct IHt as [t'' H].
-    exists (TList t''). simpl.
-    rewrite H. reflexivity.
-  - destruct s as [x y]. simpl. destruct beq_id.
-    * exists y. reflexivity.
-    * exists (TVar i). reflexivity.
-Qed.
-
-Lemma subst_form_num :
-  forall s, subst s TNum = TNum.
-Proof. reflexivity. Qed.
-
-Lemma subst_form_bool :
-  forall s, subst s TBool = TBool.
-Proof. reflexivity. Qed.
-
-Lemma subst_form_list :
-  forall s t, exists t', subst s (TList t) = TList t'.
-Proof.
-  introv.
-  simpl.
-  assert (H: exists t'', subst s t = t'').
-    { apply subst_form_any. }
-  destruct H as [t'' H]. exists t''. rewrite H. reflexivity.
-Qed.
-
-Lemma subst_form_fun :
-  forall s t1 t2, exists t1' t2', subst s (TFun t1 t2) = TFun t1' t2'.
-Proof.
-  introv.
-  simpl.
-  assert (H1: exists t1'', subst s t1 = t1'').
-    { apply subst_form_any. }
-  assert (H2: exists t2'', subst s t2 = t2'').
-    { apply subst_form_any. }
-  destruct H1 as [t1'' H1]. destruct H2 as [t2'' H2].
-  rewrite H1, H2.
-  exists t1'' t2''.
-  reflexivity.
-Qed.
-
-(* app_substs *)
-Lemma app_substs_concrete_type :
-  forall s T, concrete_type T -> app_substs s T = T.
-Proof.
-  introv H.
-  induction s as [|hd tl].
-  - reflexivity.
-  - destruct T.
-    * simpl. rewrite IHtl. apply subst_concrete_type. assumption.
-    * simpl. rewrite IHtl. apply subst_concrete_type. assumption.
-    * simpl. rewrite IHtl. apply subst_concrete_type. assumption.
-    * simpl. rewrite IHtl. apply subst_concrete_type. assumption.
-    * inverts H.
-Qed.
-
-Lemma app_substs_form_num :
-  forall s, app_substs s TNum = TNum.
-Proof.
-  introv.
-  apply (app_substs_concrete_type s TNum).
-  apply CT_Num.
-Qed.
-
-Lemma app_substs_form_bool :
-  forall s, app_substs s TBool = TBool.
-Proof.
-  introv.
-  apply (app_substs_concrete_type s TBool).
-  apply CT_Bool.
-Qed.
-
-Lemma app_substs_sub_list :
-  forall s t, app_substs s (TList t) = TList (app_substs s t).
-Proof.
-  introv.
-  induction s as [|hd tl].
-  - reflexivity.
-  - simpl. rewrite IHtl. simpl. reflexivity.
-Qed.
-
-Lemma app_substs_form_list :
-  forall s t, exists t', app_substs s (TList t) = TList t'.
-Proof.
-  introv.
-  induction s as [|hd tl].
-  - exists t. reflexivity.
-  - simpl. destruct IHtl as [t'' Htl].
-    rewrite Htl. apply (subst_form_list hd t'').
-Qed.
-(*
-Proof.
-  introv.
-  rewrite (app_substs_sub_list s t).
-  exists (app_substs s t). reflexivity.
-Qed.
-*)
-
-Lemma app_substs_sub_fun :
-  forall s t1 t2, app_substs s (TFun t1 t2) = TFun (app_substs s t1) (app_substs s t2).
-Proof.
-  introv.
-  induction s as [|hd tl].
-  - reflexivity.
-  - simpl. rewrite IHtl. simpl. reflexivity.
-Qed.
-
-Lemma app_substs_form_fun :
-  forall s t1 t2, exists t1' t2', app_substs s (TFun t1 t2) = TFun t1' t2'.
-Proof.
-  introv.
-  induction s as [|hd tl].
-  - exists t1 t2. reflexivity.
-  - simpl. destruct IHtl as [t1'' [t2'' Htl]].
-    rewrite Htl. apply (subst_form_fun hd t1'' t2'').
-Qed.
-(*
-Proof.
-  introv.
-  rewrite (app_substs_sub_fun s t1 t2).
-  exists (app_substs s t1) (app_substs s t2). reflexivity.
-Qed.
-*)
-
 
 (* ################################################################# *)
 (* Main goals *)
 
 Theorem typeinference_soundness :
   forall
-    t_env
-    t T
-    e S C fv1 fv2,
-  convert_expr t e ->
-  typecheck t_env t T ->
-  typeinf t_env fv1 e (fv2, S, C) ->
-  (exists s, solution s C /\ app_substs s S = T).
+    ti_env e S C fv1 fv2
+    sub
+    tc_env t T,
+    typeinf ti_env fv1 e (fv2, S, C) ->
+    satisfy sub C ->
+    app_sub_to_type sub S = T ->
+    app_sub_to_env sub ti_env = tc_env ->
+    app_sub_to_expr sub e = t ->
+    typecheck tc_env t T.
 Proof.
-  induction t;
-  introv Hc Htc Hti .
-  - inverts Hc. inverts Hti. inverts Htc.
-    exists (@nil (id * t_type) % type). simpl. split.
-    * apply SOL_Empty.
-    * reflexivity.
-  - inverts Hc. inverts Hti. inverts Htc.
-    exists (@nil (id * t_type) % type). simpl. split.
-    * apply SOL_Empty.
-    * reflexivity.
-  - inverts Hc. inverts Hti. inverts Htc.
-    exists (@nil (id * t_type) % type). simpl. split.
-    * apply SOL_Empty.
-    * rewrite H1 in H3. inverts H3. reflexivity.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - admit.
-  - inverts Hc. inverts Hti. inverts Htc.
-    exists [(Id fv1, t)]. split.
-    * apply SOL_Empty.
-    * simpl. rewrite <- beq_nat_refl. reflexivity.
 Admitted.
 
+(*
 Theorem typeinference_completeness :
   forall
     t_env e fv1 fv2 S C,
@@ -555,3 +383,4 @@ Proof.
     * apply CE_Nil.
     * apply TC_Nil.
 Admitted.
+*)
