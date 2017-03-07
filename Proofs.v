@@ -116,7 +116,7 @@ Theorem typeinference_soundness :
 Proof.
   induction e;
   introv Hti Hsat Hexpr Htype Henv;
-  try(inverts Hti as Htie1 Htie2 Htie3; simpl in Hexpr; simpl in Htype; simpl in Henv);
+  try (inverts Hti as Htie1 Htie2 Htie3; simpl in Hexpr; simpl in Htype; simpl in Henv);
   sort.
   (* ENum *)
   - rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Num.
@@ -187,7 +187,33 @@ Proof.
     assumption.
 
   (* ECall *)
-  - admit.
+  - (* satisfy sub f_C *)
+    assert (Hsat_f_C: satisfy sub f_C).
+      { apply (satisfy_constr_concat sub f_C [(f_T, TFun e_T (TVar (Id e_fv)))]).
+        apply (satisfy_constr_concat sub e_C (f_C ++ [(f_T, TFun e_T (TVar (Id e_fv)))])).
+        assumption. }
+    (* satisfy sub e_C *)
+    assert (Hsat_e_C: satisfy sub e_C).
+      { apply (satisfy_constr_concat sub e_C (f_C ++ [(f_T, TFun e_T (TVar (Id e_fv)))])).
+        assumption. }
+    (* app_sub_to_type sub f_T = app_sub_to_type (TFun e_T (TVar (Id e_fv))) *)
+    assert (Hsat_f_T_TFun: satisfy sub [(f_T, TFun e_T (TVar (Id e_fv)))]).
+      { apply (satisfy_constr_concat sub f_C [(f_T, TFun e_T (TVar (Id e_fv)))]).
+        apply (satisfy_constr_concat sub e_C (f_C ++ [(f_T, TFun e_T (TVar (Id e_fv)))])).
+        assumption. }
+    inverts Hsat_f_T_TFun as Happsub_f_T_TFun Tmp. clear Tmp.
+    simpl in Happsub_f_T_TFun.
+    (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub f_T) *)
+    assert (Hf: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub f_T)).
+      { apply (IHe1 ti_env f_T f_C fv1 f_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub f_T));
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e_T) *)
+    assert (He: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e_T)).
+      { apply (IHe2 ti_env e_T e_C f_fv e_fv sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e_T));
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_Call with (e_T := (app_sub_to_type sub e_T)).
+      * rewrite <- Happsub_f_T_TFun. assumption.
+      * assumption.
 
   (* EBinop *)
   - (* b = OpPlus \/ b = OpMinus *)
