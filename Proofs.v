@@ -244,11 +244,11 @@ Proof.
     simpl in Happsub_e2_T_TNum.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
-      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T)).
+      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T));
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
-      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T)).
+      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Binop_nnn.
       * assumption.
@@ -282,11 +282,11 @@ Proof.
     simpl in Happsub_e2_T_TNum.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
-      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T)).
+      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T));
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
-      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T)).
+      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Binop_nnb.
       * assumption.
@@ -320,11 +320,11 @@ Proof.
     simpl in Happsub_e2_T_TBool.
     (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
     assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
-      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T)).
+      { apply (IHe1 ti_env e1_T e1_C fv1 e1_fv sub (app_sub_to_expr sub e1) tc_env (app_sub_to_type sub e1_T));
         try assumption; reflexivity. }
     (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
     assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
-      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T)).
+      { apply (IHe2 ti_env e2_T e2_C e1_fv fv2 sub (app_sub_to_expr sub e2) tc_env (app_sub_to_type sub e2_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Binop_bbb.
       * assumption.
@@ -361,7 +361,7 @@ Proof.
 
   (* ENil *)
   - rewrite <- Hexpr, <- Htype. apply TC_Nil.
-Admitted.
+Qed.
 
 (*
 Theorem typeinference_completeness :
