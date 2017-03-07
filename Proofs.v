@@ -98,21 +98,221 @@ Theorem typeinference_soundness :
     app_sub_to_env sub ti_env = tc_env ->
     typecheck tc_env t T.
 Proof.
-  induction e; introv Hti Hsat Hexpr Htype Henv; sort.
-  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
-    rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Num.
-  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
-    rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Bool.
-  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
-    rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Var.
-    unfold app_sub_to_env. rewrite H3. reflexivity.
+  induction e;
+  introv Hti Hsat Hexpr Htype Henv;
+  try(inverts Hti as Htie1 Htie2 Htie3; simpl in Hexpr; simpl in Htype; simpl in Henv);
+  sort.
+  (* ENum *)
+  - rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Num.
+  (* EBool *)
+  - rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Bool.
+  (* EVar *)
+  - rewrite <- Hexpr, <- Htype, <- Henv. apply TC_Var.
+    unfold app_sub_to_env. rewrite Htie1. reflexivity.
+
+  (* EIf *)
+  - (* satisfy sub c_C *)
+    assert (Hsat_c_C: satisfy sub c_C).
+      { apply (satisfy_constr_concat sub c_C [(S, e2_T); (c_T, TBool)]).
+        apply (satisfy_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, TBool)])).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, TBool)])).
+        assumption. }
+    (* satisfy sub e1_C *)
+    assert (Hsat_e1_C: satisfy sub e1_C).
+      { apply (satisfy_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, TBool)])).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, TBool)])).
+        assumption. }
+    (* satisfy sub e2_C *)
+    assert (Hsat_e2_C: satisfy sub e2_C).
+      { apply (satisfy_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, TBool)])).
+        assumption. }
+    (* app_sub_to_type sub c_T = TBool *)
+    assert (Hsat_c_T_TBool: satisfy sub [(c_T, TBool)]).
+      { apply (satisfy_constr_concat sub [(S, e2_T)] [(c_T, TBool)]).
+        apply (satisfy_constr_concat sub c_C [(S, e2_T); (c_T, TBool)]).
+        apply (satisfy_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, TBool)])).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, TBool)])).
+        assumption. }
+    inverts Hsat_c_T_TBool as Happsub_c_T_TBool Tmp. clear Tmp.
+    simpl in Happsub_c_T_TBool.
+    (* app_sub_to_type sub S = app_sub_to_type sub e2_T *)
+    assert (Hsat_S_e2_T: satisfy sub [(S, e2_T)]).
+      { apply (satisfy_constr_concat sub [(S, e2_T)] [(c_T, TBool)]).
+        apply (satisfy_constr_concat sub c_C [(S, e2_T); (c_T, TBool)]).
+        apply (satisfy_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, TBool)])).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, TBool)])).
+        assumption. }
+    inverts Hsat_S_e2_T as Happsub_S_e2_T Tmp. clear Tmp.
+    simpl in Happsub_S_e2_T.
+    (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub c_T) *)
+    assert (Hc: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub c_T)).
+      { apply (IHe1 c_T c_C fv1 c_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub c_T));
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub S) *)
+    assert (He1: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub S)).
+      { apply (IHe2 S e1_C c_fv e1_fv sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub S));
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e3) (app_sub_to_type sub e2_T) *)
+    assert (He2: typecheck tc_env (app_sub_to_expr sub e3) (app_sub_to_type sub e2_T)).
+      { apply (IHe3 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e3) (app_sub_to_type sub e2_T));
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_If.
+      * rewrite <- Happsub_c_T_TBool. assumption.
+      * assumption.
+      * rewrite Happsub_S_e2_T. assumption.
+
+  (* EFun *)
   - admit.
+
+  (* ECall *)
   - admit.
-  - admit.
-  - admit.
-  - admit.
-  - inverts Hti. simpl in Hexpr. simpl in Htype. simpl in Henv.
-    rewrite <- Hexpr, <- Htype. apply TC_Nil.
+
+  (* EBinop *)
+  - (* b = OpPlus \/ b = OpMinus *)
+    (* satisfy sub e1_C *)
+    assert (Hsat_e1_C: satisfy sub e1_C).
+      { apply (satisfy_constr_concat sub e1_C [(e2_T, TNum); (e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    (* satisfy sub e2_C *)
+    assert (Hsat_e2_C: satisfy sub e2_C).
+      { apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    (* app_sub_to_type sub e1_T = TNum *)
+    assert (Hsat_e1_T_TNum: satisfy sub [(e1_T, TNum)]).
+      { apply (satisfy_constr_concat sub [(e2_T, TNum)] [(e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e1_C [(e2_T, TNum); (e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    inverts Hsat_e1_T_TNum as Happsub_e1_T_TNum Tmp. clear Tmp.
+    simpl in Happsub_e1_T_TNum.
+    (* app_sub_to_type sub e2_T = TNum *)
+    assert (Hsat_e2_T_TNum: satisfy sub [(e2_T, TNum)]).
+      { apply (satisfy_constr_concat sub [(e2_T, TNum)] [(e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e1_C [(e2_T, TNum); (e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    inverts Hsat_e2_T_TNum as Happsub_e2_T_TNum Tmp. clear Tmp.
+    simpl in Happsub_e2_T_TNum.
+    (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
+    assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+      { apply (IHe1 e1_T e1_C fv1 e1_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
+    assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+      { apply (IHe2 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_Binop_nnn.
+      * assumption.
+      * rewrite <- Happsub_e1_T_TNum. assumption.
+      * rewrite <- Happsub_e2_T_TNum. assumption.
+  - (* b = OpEq \/ b = OpNeq *)
+    (* satisfy sub e1_C *)
+    assert (Hsat_e1_C: satisfy sub e1_C).
+      { apply (satisfy_constr_concat sub e1_C [(e2_T, TNum); (e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    (* satisfy sub e2_C *)
+    assert (Hsat_e2_C: satisfy sub e2_C).
+      { apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    (* app_sub_to_type sub e1_T = TNum *)
+    assert (Hsat_e1_T_TNum: satisfy sub [(e1_T, TNum)]).
+      { apply (satisfy_constr_concat sub [(e2_T, TNum)] [(e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e1_C [(e2_T, TNum); (e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    inverts Hsat_e1_T_TNum as Happsub_e1_T_TNum Tmp. clear Tmp.
+    simpl in Happsub_e1_T_TNum.
+    (* app_sub_to_type sub e2_T = TNum *)
+    assert (Hsat_e2_T_TNum: satisfy sub [(e2_T, TNum)]).
+      { apply (satisfy_constr_concat sub [(e2_T, TNum)] [(e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e1_C [(e2_T, TNum); (e1_T, TNum)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TNum); (e1_T, TNum)])).
+        assumption. }
+    inverts Hsat_e2_T_TNum as Happsub_e2_T_TNum Tmp. clear Tmp.
+    simpl in Happsub_e2_T_TNum.
+    (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
+    assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+      { apply (IHe1 e1_T e1_C fv1 e1_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
+    assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+      { apply (IHe2 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_Binop_nnb.
+      * assumption.
+      * rewrite <- Happsub_e1_T_TNum. assumption.
+      * rewrite <- Happsub_e2_T_TNum. assumption.
+  - (* b = OpAnd \/ b = OpOr *)
+    (* satisfy sub e1_C *)
+    assert (Hsat_e1_C: satisfy sub e1_C).
+      { apply (satisfy_constr_concat sub e1_C [(e2_T, TBool); (e1_T, TBool)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TBool); (e1_T, TBool)])).
+        assumption. }
+    (* satisfy sub e2_C *)
+    assert (Hsat_e2_C: satisfy sub e2_C).
+      { apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TBool); (e1_T, TBool)])).
+        assumption. }
+    (* app_sub_to_type sub e1_T = TBool *)
+    assert (Hsat_e1_T_TBool: satisfy sub [(e1_T, TBool)]).
+      { apply (satisfy_constr_concat sub [(e2_T, TBool)] [(e1_T, TBool)]).
+        apply (satisfy_constr_concat sub e1_C [(e2_T, TBool); (e1_T, TBool)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TBool); (e1_T, TBool)])).
+        assumption. }
+    inverts Hsat_e1_T_TBool as Happsub_e1_T_TBool Tmp. clear Tmp.
+    simpl in Happsub_e1_T_TBool.
+    (* app_sub_to_type sub e2_T = TBool *)
+    assert (Hsat_e2_T_TBool: satisfy sub [(e2_T, TBool)]).
+      { apply (satisfy_constr_concat sub [(e2_T, TBool)] [(e1_T, TBool)]).
+        apply (satisfy_constr_concat sub e1_C [(e2_T, TBool); (e1_T, TBool)]).
+        apply (satisfy_constr_concat sub e2_C (e1_C ++ [(e2_T, TBool); (e1_T, TBool)])).
+        assumption. }
+    inverts Hsat_e2_T_TBool as Happsub_e2_T_TBool Tmp. clear Tmp.
+    simpl in Happsub_e2_T_TBool.
+    (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T) *)
+    assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+      { apply (IHe1 e1_T e1_C fv1 e1_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub e1_T)).
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T) *)
+    assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+      { apply (IHe2 e2_T e2_C e1_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub e2_T)).
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_Binop_bbb.
+      * assumption.
+      * rewrite <- Happsub_e1_T_TBool. assumption.
+      * rewrite <- Happsub_e2_T_TBool. assumption.
+  (* ECons *)
+  - (* satisfy sub hd_C *)
+    assert (Hsat_hd_C: satisfy sub hd_C).
+      { apply (satisfy_constr_concat sub hd_C [(tl_T, TList hd_T)]).
+        apply (satisfy_constr_concat sub tl_C (hd_C ++ [(tl_T, TList hd_T)])).
+        assumption. }
+    (* satisfy sub tl_C *)
+    assert (Hsat_tl_C: satisfy sub tl_C).
+      { apply (satisfy_constr_concat sub tl_C (hd_C ++ [(tl_T, TList hd_T)])).
+        assumption. }
+    (* app_sub_to_type sub tl_T = TList (app_sub_to_type sub hd_T) *)
+    assert (Hsat_tl_T_hd_T: satisfy sub [(tl_T, TList hd_T)]).
+      { apply (satisfy_constr_concat sub hd_C [(tl_T, TList hd_T)]).
+        apply (satisfy_constr_concat sub tl_C (hd_C ++ [(tl_T, TList hd_T)])).
+        assumption. }
+    inverts Hsat_tl_T_hd_T as Happsub_tl_T_hd_T Tmp. clear Tmp.
+    simpl in Happsub_tl_T_hd_T.
+    (* typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub hd_T) *)
+    assert (He1: typecheck tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub hd_T)).
+      { apply (IHe1 hd_T hd_C fv1 hd_fv sub tc_env (app_sub_to_expr sub e1) (app_sub_to_type sub hd_T));
+        try assumption; reflexivity. }
+    (* typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub (TList hd_T)) *)
+    assert (He2: typecheck tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub tl_T)).
+      { apply (IHe2 tl_T tl_C hd_fv fv2 sub tc_env (app_sub_to_expr sub e2) (app_sub_to_type sub tl_T));
+        try assumption; reflexivity. }
+    rewrite <- Hexpr, <- Htype. apply TC_Cons.
+      * assumption.
+      * rewrite <- Happsub_tl_T_hd_T. assumption.
+
+  (* ENil *)
+  - rewrite <- Hexpr, <- Htype. apply TC_Nil.
 Admitted.
 
 (*
@@ -122,280 +322,4 @@ Theorem typeinference_completeness :
   typeinf t_env fv1 e (fv2, S, C) ->
   (exists s, solution s C) ->
   (exists t T, convert_expr t e /\ typecheck t_env t T).
-Proof.
-  induction e;
-  introv Hti Hsub;
-  destruct Hsub as [sub Hsubsol];
-  inverts Hti as Htie1 Htie2 Htie3; sort.
-  (* ut_Num *)
-  - exists (t_Num n) TNum. split.
-    * apply CE_Num.
-    * apply TC_Num.
-  (* ut_Bool *)
-  - exists (t_Bool b) TBool. split.
-    * apply CE_Bool.
-    * apply TC_Bool.
-  (* ut_Var *)
-  - exists (t_Var i) S. split.
-    * apply CE_Var.
-    * apply TC_Var. assumption.
-  (* ut_If *)
-  - admit.
-(*
-  - (* solution sub c_C *)
-    assert (Hsol_c_C: solution sub c_C).
-      { apply (solution_constr_concat sub c_C [(S, e2_T); (c_T, inft_Bool)]).
-        apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        assumption. }
-    (* solution sub e1_C *)
-    assert (Hsol_e1_C: solution sub e1_C).
-      { apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        assumption. }
-    (* solution sub e2_C *)
-    assert (Hsol_e2_C: solution sub e2_C).
-      { apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        assumption. }
-    (* convert_type (app_substs sub c_T) cont_Bool *)
-    assert (Hsol_c_T: solution sub [(c_T, inft_Bool)]).
-      { apply (solution_constr_concat sub [(S, e2_T)] [(c_T, inft_Bool)]).
-        apply (solution_constr_concat sub c_C [(S, e2_T); (c_T, inft_Bool)]).
-        apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        assumption. }
-    inverts Hsol_c_T as Hc_bool.
-    assert (Hsubsts_c_T: convert_type (app_substs sub c_T) cont_Bool).
-      { rewrite Hc_bool, (app_substs_form_bool sub). apply CT_Bool. }
-    (* convert_type (app_substs sub S) T *)
-    assert (Hsubsts_S: convert_type (app_substs sub S) T).
-      { assumption. }
-    (* convert_type (app_substs sub e2_T) T *)
-    assert (Hsol_e2_T: solution sub [(S, e2_T)]).
-      { apply (solution_constr_concat sub [(S, e2_T)] [(c_T, inft_Bool)]).
-        apply (solution_constr_concat sub c_C [(S, e2_T); (c_T, inft_Bool)]).
-        apply (solution_constr_concat sub e1_C (c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        apply (solution_constr_concat sub e2_C (e1_C ++ c_C ++ [(S, e2_T); (c_T, inft_Bool)])).
-        assumption. }
-    inverts Hsol_e2_T as HS_e2_T.
-    assert (Hsubsts_e2_T: convert_type (app_substs sub e2_T) T).
-      { rewrite <- HS_e2_T. assumption. }
-    (* exists s, solution s c_C /\ convert_type (app_substs s c_T) cont_Bool *)
-    assert (Hsubc: exists s, solution s c_C /\ convert_type (app_substs s c_T) cont_Bool).
-      { exists sub. split; assumption. }
-    (* exists s, solution s e1_C /\ convert_type (app_substs s S) T *)
-    assert (Hsube1: exists s, solution s e1_C /\ convert_type (app_substs s S) T).
-      { exists sub. split; assumption. }
-    (* exists s, solution s e2_C /\ convert_type (app_substs s e2_T) T *)
-    assert (Hsube2: exists s, solution s e2_C /\ convert_type (app_substs s e2_T) T).
-      { exists sub. split; assumption. }
-    (* exists t, convert_expr t e1 /\ typecheck tc_env t cont_Bool *)
-    assert (Hc: exists t, convert_expr t e1 /\ typecheck tc_env t cont_Bool).
-      { apply (IHe1 fv1 c_fv c_T c_C cont_Bool Htie1 Hsubc Henv). }
-    (* exists t, convert_expr t e2 /\ typecheck tc_env t T *)
-    assert (He1: exists t, convert_expr t e2 /\ typecheck tc_env t T).
-      { apply (IHe2 c_fv e1_fv S e1_C T Htie2 Hsube1 Henv). }
-    (* exists t, convert_expr t e3 /\ typecheck tc_env t T *)
-    assert (He2: exists t, convert_expr t e3 /\ typecheck tc_env t T).
-      { apply (IHe3 e1_fv fv2 e2_T e2_C T Htie3 Hsube2 Henv). }
-    destruct Hc as [c' [Hce Htc]].
-    destruct He1 as [e1' [Hce1 Htc1]].
-    destruct He2 as [e2' [Hce2 Htc2]].
-    exists (t_If c' e1' e2'). split.
-      * apply CE_If; assumption.
-      * apply TC_If; assumption.
-*)
-  (* ut_Fun *)
-  - admit.
-  (* ut_Call *)
-  - admit.
-  (* ut_Binop *)
-  - admit. (* b = op_Plus \/ b = op_Minus *)
-(*
-    (* T = cont_Num *)
-    rewrite app_substs_form_num in Hsubconv. inverts Hsubconv.
-    (* solution sub e1_C *)
-    assert (Hsol_e1_C: solution sub e1_C).
-      { apply (solution_constr_concat sub e1_C [(e2_T, inft_Num); (e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    (* solution sub e2_C *)
-    assert (Hsol_e2_C: solution sub e2_C).
-      { apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    (* convert_type (app_substs sub e1_T) cont_Num *)
-    assert (Hsol_e1_T: solution sub [(e1_T, inft_Num)]).
-      { apply (solution_constr_concat sub [(e2_T, inft_Num)] [(e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e1_C [(e2_T, inft_Num); (e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    inverts Hsol_e1_T as He1_num.
-    assert (Hsubsts_e1_T: convert_type (app_substs sub e1_T) cont_Num).
-      { rewrite He1_num, app_substs_form_num. apply CT_Num. }
-    (* convert_type (app_substs sub e2_T) cont_Num *)
-    assert (Hsol_e2_T: solution sub [(e2_T, inft_Num)]).
-      { apply (solution_constr_concat sub [(e2_T, inft_Num)] [(e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e1_C [(e2_T, inft_Num); (e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    inverts Hsol_e2_T as He2_num.
-    assert (Hsubsts_e2_T: convert_type (app_substs sub e2_T) cont_Num).
-      { rewrite He2_num, app_substs_form_num. apply CT_Num. }
-    (* exists s, solution s e1_C /\ convert_type (app_substs s e1_T) cont_Num *)
-    assert (Hsube1: exists s, solution s e1_C /\ convert_type (app_substs s e1_T) cont_Num).
-      { exists sub. split; assumption. }
-    (* exists s, solution s e2_C /\ convert_type (app_substs s e2_T) cont_Num *)
-    assert (Hsube2: exists s, solution s e2_C /\ convert_type (app_substs s e2_T) cont_Num).
-      { exists sub. split; assumption. }
-    (* exists t, convert_expr t e1 /\ typecheck tc_env t cont_Num *)
-    assert (He1: exists t, convert_expr t e1 /\ typecheck tc_env t cont_Num).
-      { apply (IHe1 fv1 e1_fv e1_T e1_C cont_Num Htie1 Hsube1 Henv). }
-    (* exists t, convert_expr t e2 /\ typecheck tc_env t cont_Num *)
-    assert (He2: exists t, convert_expr t e2 /\ typecheck tc_env t cont_Num).
-      { apply (IHe2 e1_fv fv2 e2_T e2_C cont_Num Htie2 Hsube2 Henv). }
-    destruct He1 as [e1' [Hce1 Htc1]]. destruct He2 as [e2' [Hce2 Htc2]].
-    exists (t_Binop b e1' e2'). split.
-      * apply CE_Binop; assumption.
-      * apply TC_Binop_nnn; assumption.
-*)
-  - admit. (* b = op_Eq \/ b = op_Neq *)
-(*
-    (* T = cont_Bool *)
-    rewrite app_substs_form_bool in Hsubconv. inverts Hsubconv.
-    (* solution sub e1_C *)
-    assert (Hsol_e1_C: solution sub e1_C).
-      { apply (solution_constr_concat sub e1_C [(e2_T, inft_Num); (e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    (* solution sub e2_C *)
-    assert (Hsol_e2_C: solution sub e2_C).
-      { apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    (* convert_type (app_substs sub e1_T) cont_Num *)
-    assert (Hsol_e1_T: solution sub [(e1_T, inft_Num)]).
-      { apply (solution_constr_concat sub [(e2_T, inft_Num)] [(e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e1_C [(e2_T, inft_Num); (e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    inverts Hsol_e1_T as He1_num.
-    assert (Hsubsts_e1_T: convert_type (app_substs sub e1_T) cont_Num).
-      { rewrite He1_num, app_substs_form_num. apply CT_Num. }
-    (* convert_type (app_substs sub e2_T) cont_Num *)
-    assert (Hsol_e2_T: solution sub [(e2_T, inft_Num)]).
-      { apply (solution_constr_concat sub [(e2_T, inft_Num)] [(e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e1_C [(e2_T, inft_Num); (e1_T, inft_Num)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Num); (e1_T, inft_Num)])).
-        assumption. }
-    inverts Hsol_e2_T as He2_num.
-    assert (Hsubsts_e2_T: convert_type (app_substs sub e2_T) cont_Num).
-      { rewrite He2_num, app_substs_form_num. apply CT_Num. }
-    (* exists s, solution s e1_C /\ convert_type (app_substs s e1_T) cont_Num *)
-    assert (Hsube1: exists s, solution s e1_C /\ convert_type (app_substs s e1_T) cont_Num).
-      { exists sub. split; assumption. }
-    (* exists s, solution s e2_C /\ convert_type (app_substs s e2_T) cont_Num *)
-    assert (Hsube2: exists s, solution s e2_C /\ convert_type (app_substs s e2_T) cont_Num).
-      { exists sub. split; assumption. }
-    (* exists t, convert_expr t e1 /\ typecheck tc_env t cont_Num *)
-    assert (He1: exists t, convert_expr t e1 /\ typecheck tc_env t cont_Num).
-      { apply (IHe1 fv1 e1_fv e1_T e1_C cont_Num Htie1 Hsube1 Henv). }
-    (* exists t, convert_expr t e2 /\ typecheck tc_env t cont_Num *)
-    assert (He2: exists t, convert_expr t e2 /\ typecheck tc_env t cont_Num).
-      { apply (IHe2 e1_fv fv2 e2_T e2_C cont_Num Htie2 Hsube2 Henv). }
-    destruct He1 as [e1' [Hce1 Htc1]]. destruct He2 as [e2' [Hce2 Htc2]].
-    exists (t_Binop b e1' e2'). split.
-      * apply CE_Binop; assumption.
-      * apply TC_Binop_nnb; assumption.
-*)
-  - admit. (* b = op_And \/ b = op_Or *)
-(*
-    (* T = cont_Bool *)
-    rewrite app_substs_form_bool in Hsubconv. inverts Hsubconv.
-    (* solution sub e1_C *)
-    assert (Hsol_e1_C: solution sub e1_C).
-      { apply (solution_constr_concat sub e1_C [(e2_T, inft_Bool); (e1_T, inft_Bool)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Bool); (e1_T, inft_Bool)])).
-        assumption. }
-    (* solution sub e2_C *)
-    assert (Hsol_e2_C: solution sub e2_C).
-      { apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Bool); (e1_T, inft_Bool)])).
-        assumption. }
-    (* convert_type (app_substs sub e1_T) cont_Bool *)
-    assert (Hsol_e1_T: solution sub [(e1_T, inft_Bool)]).
-      { apply (solution_constr_concat sub [(e2_T, inft_Bool)] [(e1_T, inft_Bool)]).
-        apply (solution_constr_concat sub e1_C [(e2_T, inft_Bool); (e1_T, inft_Bool)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Bool); (e1_T, inft_Bool)])).
-        assumption. }
-    inverts Hsol_e1_T as He1_bool.
-    assert (Hsubsts_e1_T: convert_type (app_substs sub e1_T) cont_Bool).
-      { rewrite He1_bool, app_substs_form_bool. apply CT_Bool. }
-    (* convert_type (app_substs sub e2_T) cont_Bool *)
-    assert (Hsol_e2_T: solution sub [(e2_T, inft_Bool)]).
-      { apply (solution_constr_concat sub [(e2_T, inft_Bool)] [(e1_T, inft_Bool)]).
-        apply (solution_constr_concat sub e1_C [(e2_T, inft_Bool); (e1_T, inft_Bool)]).
-        apply (solution_constr_concat sub e2_C (e1_C ++ [(e2_T, inft_Bool); (e1_T, inft_Bool)])).
-        assumption. }
-    inverts Hsol_e2_T as He2_bool.
-    assert (Hsubsts_e2_T: convert_type (app_substs sub e2_T) cont_Bool).
-      { rewrite He2_bool, app_substs_form_bool. apply CT_Bool. }
-    (* exists s, solution s e1_C /\ convert_type (app_substs s e1_T) cont_Bool *)
-    assert (Hsube1: exists s, solution s e1_C /\ convert_type (app_substs s e1_T) cont_Bool).
-      { exists sub. split; assumption. }
-    (* exists s, solution s e2_C /\ convert_type (app_substs s e2_T) cont_Bool *)
-    assert (Hsube2: exists s, solution s e2_C /\ convert_type (app_substs s e2_T) cont_Bool).
-      { exists sub. split; assumption. }
-    (* exists t, convert_expr t e1 /\ typecheck tc_env t cont_Bool *)
-    assert (He1: exists t, convert_expr t e1 /\ typecheck tc_env t cont_Bool).
-      { apply (IHe1 fv1 e1_fv e1_T e1_C cont_Bool Htie1 Hsube1 Henv). }
-    (* exists t, convert_expr t e2 /\ typecheck tc_env t cont_Bool *)
-    assert (He2: exists t, convert_expr t e2 /\ typecheck tc_env t cont_Bool).
-      { apply (IHe2 e1_fv fv2 e2_T e2_C cont_Bool Htie2 Hsube2 Henv). }
-    destruct He1 as [e1' [Hce1 Htc1]]. destruct He2 as [e2' [Hce2 Htc2]].
-    exists (t_Binop b e1' e2'). split.
-      * apply CE_Binop; assumption.
-      * apply TC_Binop_bbb; assumption.
-*)
-  (* ut_Cons *)
-  - admit.
-(*
-  - (* solution sub hd_C *)
-    assert (Hsol_hd_C: solution sub hd_C).
-      { apply (solution_constr_concat sub hd_C [(tl_T, inft_List hd_T)]).
-        apply (solution_constr_concat sub tl_C (hd_C ++ [(tl_T, inft_List hd_T)])).
-        assumption. }
-    (* solution sub tl_C *)
-    assert (Hsol_tl_C: solution sub tl_C).
-      { apply (solution_constr_concat sub tl_C (hd_C ++ [(tl_T, inft_List hd_T)])).
-        assumption. }
-    (* convert_type (app_substs sub hd_T) l_t *)
-    assert (Hsol_tl_T_hd_T: solution sub [(tl_T, inft_List hd_T)]).
-      { apply (solution_constr_concat sub hd_C [(tl_T, inft_List hd_T)]).
-        apply (solution_constr_concat sub tl_C (hd_C ++ [(tl_T, inft_List hd_T)])).
-        assumption. }
-    inverts Hsol_tl_T_hd_T.
-    rewrite (app_substs_sub_list sub hd_T) in Hsubconv. inverts keep Hsubconv as Hsubsts_hd_T.
-    (* convert_type (app_substs sub tl_T) (cont_List l_t) *)
-    assert (Hsubsts_lt_T: convert_type (app_substs sub tl_T) (cont_List l_t)).
-      { rewrite H2. rewrite (app_substs_sub_list sub hd_T). apply CT_List. assumption. }
-    (* exists s, solution s hd_C /\ convert_type (app_substs s hd_T) l_t *)
-    assert (Hsube1: exists s, solution s hd_C /\ convert_type (app_substs s hd_T) l_t).
-      { exists sub. split; assumption. }
-    (* exists s, solution s tl_C /\ convert_type (app_substs s tl_T) (cont_List l_t) *)
-    assert (Hsube2: exists s, solution s tl_C /\ convert_type (app_substs s tl_T) (cont_List l_t)).
-      { exists sub. split; assumption. }
-    (* exists t, convert_expr t e1 /\ typecheck tc_env t l_t *)
-    assert (He1: exists t, convert_expr t e1 /\ typecheck tc_env t l_t).
-      { apply (IHe1 fv1 hd_fv hd_T hd_C l_t Htie1 Hsube1 Henv). }
-    (* exists t, convert_expr t e2 /\ typecheck tc_env t (cont_List l_t) *)
-    assert (He2: exists t, convert_expr t e2 /\ typecheck tc_env t (cont_List l_t) ).
-      { apply (IHe2 hd_fv fv2 tl_T tl_C (cont_List l_t) Htie2 Hsube2 Henv). }
-    destruct He1 as [e1' [Hce1 Htc1]]. destruct He2 as [e2' [Hce2 Htc2]].
-    exists (t_Cons e1' e2'). split.
-      * apply CE_Cons; assumption.
-      * apply TC_Cons; assumption.
-*)
-  (* ut_Nil *)
-  - exists (t_Nil TNum) (TList TNum). split.
-    * apply CE_Nil.
-    * apply TC_Nil.
-Admitted.
 *)
