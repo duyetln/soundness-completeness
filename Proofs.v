@@ -407,11 +407,17 @@ Proof.
   - rewrite <- Hexpr, <- Htype. apply TC_Nil.
 Qed.
 
-(*
+
 Theorem typeinference_completeness :
   forall
-    t_env e fv1 fv2 S C,
-  typeinf t_env fv1 e (fv2, S, C) ->
-  (exists s, solution s C) ->
-  (exists t T, convert_expr t e /\ typecheck t_env t T).
-*)
+    e ti_env fv1 fv2 S C X
+    sub
+    t tc_env T,
+  typeinf ti_env fv1 e (fv2, S, C, X) ->
+  app_sub_to_expr sub e = t ->
+  app_sub_to_env sub ti_env = tc_env ->
+  typecheck tc_env t T ->
+  (forall i, In i X -> sub i = None) ->
+  (exists sub', satisfy sub' C /\ app_sub_to_type sub' S = T /\ delete sub' X = sub).
+Proof.
+Admitted.
