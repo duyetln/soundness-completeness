@@ -420,4 +420,46 @@ Theorem typeinference_completeness :
   (forall i, In i X -> sub i = None) ->
   (exists sub', satisfy sub' C /\ app_sub_to_type sub' S = T /\ delete sub' X = sub).
 Proof.
+  induction e;
+  introv Hti Hexpr Henv Htc Hnone;
+  sort.
+  - inverts Hti as Htie1 Htie2 Htie3.
+    simpl in Hexpr.
+    rewrite <- Hexpr in Htc.
+    inverts Htc as Htce1 Htce2 Htce3.
+    exists sub. splits.
+    * apply SAT_Empty.
+    * reflexivity.
+    * reflexivity.
+  - inverts Hti as Htie1 Htie2 Htie3.
+    simpl in Hexpr.
+    rewrite <- Hexpr in Htc.
+    inverts Htc as Htce1 Htce2 Htce3.
+    exists sub. splits.
+    * apply SAT_Empty.
+    * reflexivity.
+    * reflexivity.
+  - inverts Hti as Htie1 Htie2 Htie3.
+    simpl in Hexpr.
+    rewrite <- Hexpr in Htc.
+    inverts Htc as Htce1 Htce2 Htce3.
+    exists sub. splits.
+    * apply SAT_Empty.
+    * rewrite <- Henv in Htce1. unfold app_sub_to_env in Htce1.
+      rewrite Htie1 in Htce1. inverts Htce1.
+      reflexivity.
+    * reflexivity.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - admit.
+  - inverts Hti as Htie1 Htie2 Htie3.
+    simpl in Hexpr.
+    rewrite <- Hexpr in Htc.
+    inverts Htc as Htce1 Htce2 Htce3.
+    exists sub. splits.
+    * apply SAT_Empty.
+    * reflexivity.
+    * reflexivity.
 Admitted.
