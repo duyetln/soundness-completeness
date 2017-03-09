@@ -52,13 +52,13 @@ Example satisfy_ex1 :
     (update (update (update empty_substs (Id 1) TNum) (Id 2) TNum) (Id 3) TNum)
     [(TList (TVar (Id 1)), TList TNum); (TList (TVar (Id 3)), TList TNum); (TVar (Id 2), TNum)].
 Proof.
-  apply SOL_NotEmpty.
+  apply SAT_NotEmpty.
   - reflexivity.
-  - apply SOL_NotEmpty.
+  - apply SAT_NotEmpty.
     * reflexivity.
-    * apply SOL_NotEmpty.
+    * apply SAT_NotEmpty.
       + reflexivity.
-      + apply SOL_Empty.
+      + apply SAT_Empty.
 Qed.
 
 Lemma satisfy_constr_concat :
@@ -68,15 +68,15 @@ Proof.
   - introv [HC1 HC2]. induction C1 as [|hd1 tl1].
     * simpl. assumption.
     * simpl. inverts HC1.
-      apply SOL_NotEmpty.
+      apply SAT_NotEmpty.
       + assumption.
       + apply (IHtl1 H3).
   - introv H. induction C1 as [|hd1 tl1]; simpl in H.
     * split.
-      + apply SOL_Empty.
+      + apply SAT_Empty.
       + assumption.
     * inverts H. apply IHtl1 in H4. inverts H4. split.
-      + apply SOL_NotEmpty.
+      + apply SAT_NotEmpty.
         { assumption. }
         { assumption. }
       + assumption.

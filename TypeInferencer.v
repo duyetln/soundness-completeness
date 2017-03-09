@@ -132,8 +132,8 @@ Definition app_sub_to_env (s : substs) (env : t_env) : substs :=
     end).
 
 Inductive satisfy : substs -> constr -> Prop :=
-  | SOL_Empty: forall s, satisfy s []
-  | SOL_NotEmpty:
+  | SAT_Empty: forall s, satisfy s []
+  | SAT_NotEmpty:
     forall s t1 t2 tl,
     app_sub_to_type s t1 = app_sub_to_type s t2 ->
     satisfy s tl ->
