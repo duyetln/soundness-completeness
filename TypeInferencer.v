@@ -138,3 +138,13 @@ Inductive satisfy : substs -> constr -> Prop :=
     app_sub_to_type s t1 = app_sub_to_type s t2 ->
     satisfy s tl ->
     satisfy s ((t1, t2)::tl).
+
+Fixpoint delete (s : substs) (l : list id) : substs :=
+  match l with
+    | [] => s
+    | i::tl =>
+    match s i with
+      | Some _ => delete (t_update s i None) tl
+      | None => delete s tl
+    end
+  end.

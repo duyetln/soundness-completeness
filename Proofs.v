@@ -98,6 +98,50 @@ Proof.
   - reflexivity.
 Qed.
 
+(* delete *)
+Example delete_ex1 :
+  (delete
+  (update (update (update empty_substs (Id 1) TNum) (Id 2) TNum) (Id 3) TNum)
+  [Id 2]) (Id 2) = None.
+Proof.
+  reflexivity.
+Qed.
+
+Lemma delete_x_sub_none :
+  forall X x sub, sub x = None -> (delete sub X) x = None.
+Proof.
+  induction X as [|x' X'];
+  introv Hsub.
+  - simpl. assumption.
+  - simpl. destruct (sub x').
+    + apply (IHX' x (t_update sub x' None)). destruct (beq_id x' x) eqn:Hid.
+      * apply beq_id_true_iff in Hid.
+        rewrite Hid.
+        apply t_update_eq.
+      * apply beq_id_false_iff in Hid.
+        rewrite <- Hsub.
+        apply t_update_neq.
+        assumption.
+    + apply (IHX' x sub Hsub).
+Qed.
+
+Lemma delete_x_in_list :
+  forall X x sub,
+    In x X ->
+    (delete sub X) x = None.
+Proof.
+  induction X as [|x' X'];
+  introv Hx;
+  inverts Hx;
+  simpl.
+  - destruct (sub x) eqn:Hsub.
+    + apply (delete_x_sub_none X' x (t_update sub x None)). apply t_update_eq.
+    + apply (delete_x_sub_none X' x sub Hsub).
+  - destruct (sub x') eqn:Hsub.
+    + apply (IHX' x (t_update sub x' None) H).
+    + apply (IHX' x sub H).
+Qed.
+
 
 (* ################################################################# *)
 (* Main goals *)
