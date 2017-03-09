@@ -12,6 +12,68 @@ Require Import AST.
 Require Import Maps.
 
 
+Fixpoint app_sub_to_type (s : substs) (t : t_type) : t_type :=
+  match t with
+    | TNum | TBool => t
+    | TFun x e => TFun (app_sub_to_type s x) (app_sub_to_type s e)
+    | TList l => TList (app_sub_to_type s l)
+    | TVar i =>
+      match s i with
+        | Some T => T
+        | None => t
+      end
+  end.
+
+Fixpoint app_sub_to_expr (s : substs) (e : t_expr) : t_expr :=
+  match e with
+    | ENum _ | EBool _ | EVar _ => e
+    | EIf c e1 e2 =>
+      EIf (app_sub_to_expr s c) (app_sub_to_expr s e1) (app_sub_to_expr s e2)
+    | EFun x T e =>
+      EFun x (app_sub_to_type s T) (app_sub_to_expr s e)
+    | ECall f e =>
+      ECall (app_sub_to_expr s f) (app_sub_to_expr s e)
+    | EBinop op e1 e2 =>
+      EBinop op (app_sub_to_expr s e1) (app_sub_to_expr s e2)
+    | ECons hd tl =>
+      ECons (app_sub_to_expr s hd) (app_sub_to_expr s tl)
+    | ENil T =>
+      ENil (app_sub_to_type s T)
+  end.
+
+Definition app_sub_to_env (s : substs) (env : t_env) : substs :=
+  (fun i =>
+    match env i with
+      | Some T => Some (app_sub_to_type s T)
+      | None => None
+    end).
+
+Inductive satisfy : substs -> constr -> Prop :=
+  | SAT_Empty: forall s, satisfy s []
+  | SAT_NotEmpty:
+    forall s t1 t2 tl,
+    app_sub_to_type s t1 = app_sub_to_type s t2 ->
+    satisfy s tl ->
+    satisfy s ((t1, t2)::tl).
+
+Fixpoint delete (s : substs) (l : list id) : substs :=
+  match l with
+    | [] => s
+    | i::tl =>
+    match s i with
+      | Some _ => delete (t_update s i None) tl
+      | None => delete s tl
+    end
+  end.
+
+Fixpoint pick (t : t_type) (fv : nat) : nat :=
+  match t with
+    | TNum | TBool => fv
+    | TFun x e => pick e (pick x fv)
+    | TList l => pick l fv
+    | TVar (Id n) => if leb fv n then n + 1 else fv
+  end.
+
 Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) % type -> Prop :=
   (* ENum *)
   (* EBool *)
@@ -36,9 +98,10 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
 
   (* EFun *)
   | TI_Fun:
-    forall env fv
+    forall env fv fv'
       x x_T e e_fv e_C e_T e_X,
-    typeinf (update env x x_T) fv e (e_fv, e_T, e_C, e_X) ->
+    pick x_T fv = fv' ->
+    typeinf (update env x x_T) fv' e (e_fv, e_T, e_C, e_X) ->
     typeinf env fv (EFun x x_T e) (e_fv, (TFun x_T e_T), e_C, e_X)
 
   (* ECall *)
@@ -94,57 +157,3 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
     op = OpAnd \/
     op = OpOr ->
     typeinf env fv (EBinop op e1 e2) (e2_fv, TBool, e2_C++ e1_C ++ [(e2_T, TBool); (e1_T, TBool)], e2_X ++ e1_X).
-
-Fixpoint app_sub_to_type (s : substs) (t : t_type) : t_type :=
-  match t with
-    | TNum | TBool => t
-    | TFun x e => TFun (app_sub_to_type s x) (app_sub_to_type s e)
-    | TList l => TList (app_sub_to_type s l)
-    | TVar i =>
-      match s i with
-        | Some T => T
-        | None => t
-      end
-  end.
-
-Fixpoint app_sub_to_expr (s : substs) (e : t_expr) : t_expr :=
-  match e with
-    | ENum _ | EBool _ | EVar _ => e
-    | EIf c e1 e2 =>
-      EIf (app_sub_to_expr s c) (app_sub_to_expr s e1) (app_sub_to_expr s e2)
-    | EFun x T e =>
-      EFun x (app_sub_to_type s T) (app_sub_to_expr s e)
-    | ECall f e =>
-      ECall (app_sub_to_expr s f) (app_sub_to_expr s e)
-    | EBinop op e1 e2 =>
-      EBinop op (app_sub_to_expr s e1) (app_sub_to_expr s e2)
-    | ECons hd tl =>
-      ECons (app_sub_to_expr s hd) (app_sub_to_expr s tl)
-    | ENil T =>
-      ENil (app_sub_to_type s T)
-  end.
-
-Definition app_sub_to_env (s : substs) (env : t_env) : substs :=
-  (fun i =>
-    match env i with
-      | Some T => Some (app_sub_to_type s T)
-      | None => None
-    end).
-
-Inductive satisfy : substs -> constr -> Prop :=
-  | SAT_Empty: forall s, satisfy s []
-  | SAT_NotEmpty:
-    forall s t1 t2 tl,
-    app_sub_to_type s t1 = app_sub_to_type s t2 ->
-    satisfy s tl ->
-    satisfy s ((t1, t2)::tl).
-
-Fixpoint delete (s : substs) (l : list id) : substs :=
-  match l with
-    | [] => s
-    | i::tl =>
-    match s i with
-      | Some _ => delete (t_update s i None) tl
-      | None => delete s tl
-    end
-  end.

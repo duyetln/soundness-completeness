@@ -224,7 +224,7 @@ Proof.
   (* EFun *)
   - (* typecheck (update ti_env i t) (app_sub_to_expr sub e) (app_sub_to_type sub e_T) *)
     assert (He: typecheck (app_sub_to_env sub (update ti_env i t)) (app_sub_to_expr sub e) (app_sub_to_type sub e_T)).
-      { apply (IHe (update ti_env i t) fv1 fv2 e_T C X sub (app_sub_to_expr sub e) (app_sub_to_env sub (update ti_env i t)) (app_sub_to_type sub e_T));
+      { apply (IHe (update ti_env i t) (pick t fv1) fv2 e_T C X sub (app_sub_to_expr sub e) (app_sub_to_env sub (update ti_env i t)) (app_sub_to_type sub e_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Fun.
     rewrite <- Henv, <- (app_sub_to_update_env sub ti_env i t).
