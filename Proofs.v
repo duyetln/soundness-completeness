@@ -19,6 +19,7 @@ Require Import TypeChecker.
 
 (* ################################################################# *)
 (* Small proofs *)
+
 (* misc *)
 Lemma in_app_iff_prop :
   forall {T : Type } (l l' : list T) (P : T -> Prop),
@@ -39,6 +40,27 @@ Proof.
     introv Hi. apply in_app_iff in Hi. destruct Hi as [Hil|Hil'].
     * apply (Hl i Hil).
     * apply (Hl' i Hil').
+Qed.
+
+Lemma app_non_nil :
+  forall {T : Type} (l l' : list T),
+    l <> [] -> (l ++ l') <>[].
+Proof.
+  introv Hl. intro.
+  apply app_eq_nil in H.
+  destruct H as [Hnl Hnl'].
+  apply Hl. assumption.
+Qed.
+
+Lemma lt_n_n_1 :
+  forall n, n < n + 1.
+Proof.
+  introv.
+  assert (H: n + 0 < n + 1).
+    { apply (plus_lt_compat_l 0 1 n).
+      apply (Nat.lt_succ_diag_r 0). }
+  rewrite <- (plus_n_O n) in H.
+  assumption.
 Qed.
 
 (* app_sub_to_type *)
@@ -194,8 +216,281 @@ Proof.
     rewrite <- (delete_in_list X x sub Hin), Hdel. reflexivity.
 Qed.
 
+(* pick *)
+Lemma pick_larger_fv :
+  forall t fv,
+    fv < pick t fv.
+Proof.
+  induction t;
+  introv;
+  simpl;
+  try (apply (lt_n_n_1 fv)).
+  - assert (Hlt_fv_t1: fv < pick t1 fv).
+      { apply (IHt1 fv). }
+    assert (Hlt_t1_t2: pick t1 fv < pick t2 (pick t1 fv)).
+      { apply (IHt2 (pick t1 fv)). }
+    apply (lt_trans fv (pick t1 fv) (pick t2 (pick t1 fv)) Hlt_fv_t1 Hlt_t1_t2).
+  - apply (IHt fv).
+  - destruct i. destruct (leb fv n) eqn:Hfv_n.
+    * assert (Hfvn: fv < n \/ fv = n).
+        { apply (le_lt_or_eq fv n (leb_complete fv n Hfv_n)). }
+      destruct Hfvn as [Hlt_fv_n|Heq_fv_n].
+      + apply (lt_trans fv n (n + 1) Hlt_fv_n (lt_n_n_1 n)).
+      + rewrite Heq_fv_n. apply (lt_n_n_1 n).
+    * apply (lt_n_n_1 fv).
 Qed.
 
+(* typeinf *)
+Lemma typeinf_larger_fv :
+  forall e t_env fv1 fv2 S C X,
+    typeinf t_env fv1 e (fv2, S, C, X) -> fv1 < fv2.
+Proof.
+  induction e;
+  introv Hti;
+  inverts Hti as Htie1 Htie2 Htie3;
+  try (apply (lt_n_n_1 fv1));
+  sort.
+  - assert (Hlt_fv1_c_fv: fv1 < c_fv).
+      { apply (IHe1 t_env fv1 c_fv c_T c_C c_X Htie1). }
+    assert (Hlt_c_fv_e1_fv: c_fv < e1_fv).
+      { apply (IHe2 t_env c_fv e1_fv S e1_C e1_X Htie2). }
+    assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+      { apply (IHe3 t_env e1_fv fv2 e2_T e2_C e2_X Htie3). }
+    assert (Hlt_c_fv_fv2: c_fv < fv2).
+      { apply (lt_trans c_fv e1_fv fv2 Hlt_c_fv_e1_fv Hlt_e1_fv_fv2). }
+    apply (lt_trans fv1 c_fv fv2 Hlt_fv1_c_fv Hlt_c_fv_fv2).
+  - assert (Hlt_fv1_t: fv1 < pick t fv1).
+      { apply (pick_larger_fv t fv1). }
+    assert (Hlt_t_fv2: pick t fv1 < fv2).
+      { apply (IHe (update t_env i t) (pick t fv1) fv2 e_T C X Htie1). }
+    apply (lt_trans fv1 (pick t fv1) fv2 Hlt_fv1_t Hlt_t_fv2).
+  - assert (Hlt_fv1_f_fv: fv1 < f_fv).
+      { apply (IHe1 t_env fv1 f_fv f_T f_C f_X Htie1). }
+    assert (Hlt_f_fv_e_fv: f_fv < e_fv).
+      { apply (IHe2 t_env f_fv e_fv e_T e_C e_X Htie2). }
+    assert (Hlt_fv1_e_fv: fv1 < e_fv).
+      { apply (lt_trans fv1 f_fv e_fv Hlt_fv1_f_fv Hlt_f_fv_e_fv). }
+    apply (lt_trans fv1 e_fv (e_fv + 1) Hlt_fv1_e_fv (lt_n_n_1 e_fv)).
+  - assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+      { apply (IHe1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1). }
+    assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+      { apply (IHe2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2). }
+    apply (lt_trans fv1 e1_fv fv2 Hlt_fv1_e1_fv Hlt_e1_fv_fv2).
+  - assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+      { apply (IHe1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1). }
+    assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+      { apply (IHe2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2). }
+    apply (lt_trans fv1 e1_fv fv2 Hlt_fv1_e1_fv Hlt_e1_fv_fv2).
+  - assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+      { apply (IHe1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1). }
+    assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+      { apply (IHe2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2). }
+    apply (lt_trans fv1 e1_fv fv2 Hlt_fv1_e1_fv Hlt_e1_fv_fv2).
+  - assert (Hlt_fv1_hd_fv: fv1 < hd_fv).
+      { apply (IHe1 t_env fv1 hd_fv hd_T hd_C hd_X Htie1). }
+    assert (Hlt_hd_fv_fv2: hd_fv < fv2).
+      { apply (IHe2 t_env hd_fv fv2 tl_T tl_C tl_X Htie2). }
+    apply (lt_trans fv1 hd_fv fv2 Hlt_fv1_hd_fv Hlt_hd_fv_fv2).
+Qed.
+
+Lemma typeinf_between_fvs :
+  forall e t_env fv1 fv2 S C X,
+    typeinf t_env fv1 e (fv2, S, C, X) ->
+    (forall n, In (Id n) X -> fv1 < n /\ n < fv2).
+Proof.
+  induction e;
+  introv Hti;
+  inverts Hti as Htie1 Htie2 Htie3;
+  introv Hin;
+  try (inverts Hin);
+  sort.
+
+  (* EIf *)
+  - apply in_app_or in Hin. destruct Hin as [Hine2X|Hine1cX].
+    * assert (Hlt_e1_fv_n_fv2: e1_fv < n < fv2).
+        { apply ((IHe3 t_env e1_fv fv2 e2_T e2_C e2_X Htie3) n Hine2X). }
+      destruct Hlt_e1_fv_n_fv2 as [Hlt_e1_fv_n Hlt_n_fv2].
+      assert (Hlt_fv1_c_fv: fv1 < c_fv).
+        { apply (typeinf_larger_fv e1 t_env fv1 c_fv c_T c_C c_X Htie1). }
+      assert (Hlt_c_fv_e1_fv: c_fv < e1_fv).
+        { apply (typeinf_larger_fv e2 t_env c_fv e1_fv S e1_C e1_X Htie2). }
+      assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+        { apply (lt_trans fv1 c_fv e1_fv Hlt_fv1_c_fv Hlt_c_fv_e1_fv). }
+      assert (Hlt_fv1_n: fv1 < n).
+        { apply (lt_trans fv1 e1_fv n Hlt_fv1_e1_fv Hlt_e1_fv_n). }
+      split; assumption.
+    * apply in_app_or in Hine1cX. destruct Hine1cX as [Hine1X|HincX].
+      + assert (Hlt_c_fv_n_e1_fv: c_fv < n < e1_fv).
+          { apply ((IHe2 t_env c_fv e1_fv S e1_C e1_X Htie2) n Hine1X). }
+        destruct Hlt_c_fv_n_e1_fv as [Hlt_c_fv_n Hlt_n_e1_fv].
+        assert (Hlt_fv1_c_fv: fv1 < c_fv).
+          { apply (typeinf_larger_fv e1 t_env fv1 c_fv c_T c_C c_X Htie1). }
+        assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+          { apply (typeinf_larger_fv e3 t_env e1_fv fv2 e2_T e2_C e2_X Htie3). }
+        assert (Hlt_fv1_n: fv1 < n).
+          { apply (lt_trans fv1 c_fv n Hlt_fv1_c_fv Hlt_c_fv_n). }
+        assert (Hlt_n_fv2: n < fv2).
+          { apply (lt_trans n e1_fv fv2 Hlt_n_e1_fv Hlt_e1_fv_fv2). }
+        split; assumption.
+      + assert (Hlt_fv1_n_c_fv: fv1 < n < c_fv).
+          { apply ((IHe1 t_env fv1 c_fv c_T c_C c_X Htie1) n HincX). }
+        destruct Hlt_fv1_n_c_fv as [Hlt_fv1_n Hlt_n_c_fv].
+        assert (Hlt_c_fv_e1_fv: c_fv < e1_fv).
+          { apply (typeinf_larger_fv e2 t_env c_fv e1_fv S e1_C e1_X Htie2). }
+        assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+          { apply (typeinf_larger_fv e3 t_env e1_fv fv2 e2_T e2_C e2_X Htie3). }
+        assert (Hlt_c_fv_fv2: c_fv < fv2).
+          { apply (lt_trans c_fv e1_fv fv2 Hlt_c_fv_e1_fv Hlt_e1_fv_fv2). }
+        assert (Hlt_n_fv2: n < fv2).
+          { apply (lt_trans n c_fv fv2 Hlt_n_c_fv Hlt_c_fv_fv2). }
+        split; assumption.
+
+  (* EFun *)
+  - assert (Hlt_t_fv2: (pick t fv1) < n < fv2).
+      { apply ((IHe (update t_env i t) (pick t fv1) fv2 e_T C X Htie1) n Hin). }
+    destruct Hlt_t_fv2 as [Hlt_t_n Hlt_n_fv2].
+    assert (Hlt_fv1_t: fv1 < pick t fv1).
+      { apply (pick_larger_fv t fv1). }
+    assert (Hlt_fv1_n: fv1 < n).
+      { apply (lt_trans fv1 (pick t fv1) n Hlt_fv1_t Hlt_t_n). }
+    split; assumption.
+
+  (* ECall *)
+  - apply in_app_or in Hin. destruct Hin as [HineX|HinfXefv].
+    * assert (Hlt_f_fv_n_e_fv: f_fv < n < e_fv).
+        { apply ((IHe2 t_env f_fv e_fv e_T e_C e_X Htie2) n HineX). }
+      destruct Hlt_f_fv_n_e_fv as [Hlt_f_fv_n Hlt_n_e_fv].
+      assert (Hlt_fv1_f_fv: fv1 < f_fv).
+        { apply (typeinf_larger_fv e1 t_env fv1 f_fv f_T f_C f_X Htie1). }
+      assert (Hlt_fv1_n: fv1 < n).
+        { apply (lt_trans fv1 f_fv n Hlt_fv1_f_fv Hlt_f_fv_n). }
+      assert (Hlt_n_e_fv_1: n < e_fv + 1).
+        { apply (lt_trans n e_fv (e_fv + 1) Hlt_n_e_fv (lt_n_n_1 e_fv)). }
+      split; assumption.
+    * apply in_app_or in HinfXefv. destruct HinfXefv as [HinfX|Hinefv].
+      + assert (Hlt_fv1_n_f_fv: fv1 < n < f_fv).
+          { apply ((IHe1 t_env fv1 f_fv f_T f_C f_X Htie1) n HinfX). }
+        destruct Hlt_fv1_n_f_fv as [Hlt_fv1_n Hlt_n_f_fv].
+        assert (Hlt_f_fv_e_fv: f_fv < e_fv).
+          { apply (typeinf_larger_fv e2 t_env f_fv e_fv e_T e_C e_X Htie2). }
+        assert (Hlt_n_e_fv: n < e_fv).
+          { apply (lt_trans n f_fv e_fv Hlt_n_f_fv Hlt_f_fv_e_fv). }
+        assert (Hlt_n_e_fv_1: n < e_fv + 1).
+          { apply (lt_trans n e_fv (e_fv + 1) Hlt_n_e_fv (lt_n_n_1 e_fv)). }
+        split; assumption.
+      + simpl in Hinefv. destruct Hinefv as [Hefvn|Hfalse].
+        { assert (Hlt_fv1_f_fv: fv1 < f_fv).
+            { apply (typeinf_larger_fv e1 t_env fv1 f_fv f_T f_C f_X Htie1). }
+          assert (Hlt_f_fv_e_fv: f_fv < e_fv).
+            { apply (typeinf_larger_fv e2 t_env f_fv e_fv e_T e_C e_X Htie2). }
+          inverts Hefvn.
+          assert (Hlt_fv1_n: fv1 < n).
+            { apply (lt_trans fv1 f_fv n Hlt_fv1_f_fv Hlt_f_fv_e_fv). }
+          assert (Hlt_n_n_1: n < n + 1).
+            { apply (lt_n_n_1 n). }
+          split; assumption. }
+        { inverts Hfalse. }
+
+  (* EBinop *)
+  - apply in_app_or in Hin. destruct Hin as [Hine2X|Hine1X].
+    * assert (Hlt_e1_fv_n_fv2: e1_fv < n < fv2).
+        { apply ((IHe2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2) n Hine2X). }
+      destruct Hlt_e1_fv_n_fv2 as [Hlt_e1_fv_n Hlt_n_fv2].
+      assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+        { apply (typeinf_larger_fv e1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1). }
+      assert (Hlt_fv1_n: fv1 < n).
+        { apply (lt_trans fv1 e1_fv n Hlt_fv1_e1_fv Hlt_e1_fv_n). }
+      split; assumption.
+    * assert (Hlt_fv1_n_e1_fv: fv1 < n < e1_fv).
+        { apply ((IHe1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1) n Hine1X). }
+      destruct Hlt_fv1_n_e1_fv as [Hlt_fv1_n Hlt_n_e1_fv].
+      assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+        { apply (typeinf_larger_fv e2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2). }
+      assert (Hlt_n_fv2: n < fv2).
+        { apply (lt_trans n e1_fv fv2 Hlt_n_e1_fv Hlt_e1_fv_fv2). }
+      split; assumption.
+
+  - apply in_app_or in Hin. destruct Hin as [Hine2X|Hine1X].
+    * assert (Hlt_e1_fv_n_fv2: e1_fv < n < fv2).
+        { apply ((IHe2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2) n Hine2X). }
+      destruct Hlt_e1_fv_n_fv2 as [Hlt_e1_fv_n Hlt_n_fv2].
+      assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+        { apply (typeinf_larger_fv e1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1). }
+      assert (Hlt_fv1_n: fv1 < n).
+        { apply (lt_trans fv1 e1_fv n Hlt_fv1_e1_fv Hlt_e1_fv_n). }
+      split; assumption.
+    * assert (Hlt_fv1_n_e1_fv: fv1 < n < e1_fv).
+        { apply ((IHe1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1) n Hine1X). }
+      destruct Hlt_fv1_n_e1_fv as [Hlt_fv1_n Hlt_n_e1_fv].
+      assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+        { apply (typeinf_larger_fv e2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2). }
+      assert (Hlt_n_fv2: n < fv2).
+        { apply (lt_trans n e1_fv fv2 Hlt_n_e1_fv Hlt_e1_fv_fv2). }
+      split; assumption.
+
+  - apply in_app_or in Hin. destruct Hin as [Hine2X|Hine1X].
+    * assert (Hlt_e1_fv_n_fv2: e1_fv < n < fv2).
+        { apply ((IHe2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2) n Hine2X). }
+      destruct Hlt_e1_fv_n_fv2 as [Hlt_e1_fv_n Hlt_n_fv2].
+      assert (Hlt_fv1_e1_fv: fv1 < e1_fv).
+        { apply (typeinf_larger_fv e1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1). }
+      assert (Hlt_fv1_n: fv1 < n).
+        { apply (lt_trans fv1 e1_fv n Hlt_fv1_e1_fv Hlt_e1_fv_n). }
+      split; assumption.
+    * assert (Hlt_fv1_n_e1_fv: fv1 < n < e1_fv).
+        { apply ((IHe1 t_env fv1 e1_fv e1_T e1_C e1_X Htie1) n Hine1X). }
+      destruct Hlt_fv1_n_e1_fv as [Hlt_fv1_n Hlt_n_e1_fv].
+      assert (Hlt_e1_fv_fv2: e1_fv < fv2).
+        { apply (typeinf_larger_fv e2 t_env e1_fv fv2 e2_T e2_C e2_X Htie2). }
+      assert (Hlt_n_fv2: n < fv2).
+        { apply (lt_trans n e1_fv fv2 Hlt_n_e1_fv Hlt_e1_fv_fv2). }
+      split; assumption.
+
+  (* ECons *)
+  - apply in_app_or in Hin. destruct Hin as [HintlX|HinhdX].
+    * assert (Hlt_hd_fv_n_fv2: hd_fv < n < fv2).
+        { apply ((IHe2 t_env hd_fv fv2 tl_T tl_C tl_X Htie2) n HintlX). }
+      destruct Hlt_hd_fv_n_fv2 as [Hlt_hd_fv_n Hlt_n_fv2].
+      assert (Hlt_fv1_hd_fv: fv1 < hd_fv).
+        { apply (typeinf_larger_fv e1 t_env fv1 hd_fv hd_T hd_C hd_X Htie1). }
+      assert (Hlt_fv1_n: fv1 < n).
+        { apply (lt_trans fv1 hd_fv n Hlt_fv1_hd_fv Hlt_hd_fv_n). }
+      split; assumption.
+    * assert (Hlt_fv1_n_hd_fv: fv1 < n < hd_fv).
+        { apply ((IHe1 t_env fv1 hd_fv hd_T hd_C hd_X Htie1) n HinhdX). }
+      destruct Hlt_fv1_n_hd_fv as [Hlt_fv1_n Hlt_n_hd_fv].
+      assert (Hlt_hd_fv_fv2: hd_fv < fv2).
+        { apply (typeinf_larger_fv e2 t_env hd_fv fv2 tl_T tl_C tl_X Htie2). }
+      assert (Hlt_n_fv2: n < fv2).
+        { apply (lt_trans n hd_fv fv2 Hlt_n_hd_fv Hlt_hd_fv_fv2). }
+      split; assumption.
+Qed.
+
+Lemma typeinf_disjoint_Xs :
+  forall
+    t_env1 e1 S1 C1 X1
+    t_env2 e2 S2 C2 X2
+    fv1 fv2 fv3,
+  typeinf t_env1 fv1 e1 (fv2, S1, C1, X1) ->
+  typeinf t_env2 fv2 e2 (fv3, S2, C2, X2) ->
+  (forall x, ~ (In x X1 /\ In x X2)).
+Proof.
+  introv Htie1 Htie2.
+  introv.
+  introv Hand.
+  destruct Hand as [HxX1 HxX2].
+  destruct x.
+  assert (Hlt_fv1_n_fv2: fv1 < n < fv2).
+    { apply ((typeinf_between_fvs e1 t_env1 fv1 fv2 S1 C1 X1 Htie1) n HxX1). }
+  assert (Hlt_fv2_n_fv3: fv2 < n < fv3).
+    { apply ((typeinf_between_fvs e2 t_env2 fv2 fv3 S2 C2 X2 Htie2) n HxX2). }
+  destruct Hlt_fv1_n_fv2 as [Hlt_fv1_n Hlt_n_fv2].
+  destruct Hlt_fv2_n_fv3 as [Hlt_fv2_n Hlt_n_fv3].
+  assert (Hlt_n_n: n < n).
+    { apply (lt_trans n fv2 n Hlt_n_fv2 Hlt_fv2_n). }
+  apply (le_not_lt n n (le_n n)).
+  assumption.
+Qed.
 
 (* ################################################################# *)
 (* Main goals *)

@@ -68,10 +68,10 @@ Fixpoint delete (s : substs) (l : list id) : substs :=
 
 Fixpoint pick (t : t_type) (fv : nat) : nat :=
   match t with
-    | TNum | TBool => fv
+    | TNum | TBool => fv + 1
     | TFun x e => pick e (pick x fv)
     | TList l => pick l fv
-    | TVar (Id n) => if leb fv n then n + 1 else fv
+    | TVar (Id n) => if leb fv n then n + 1 else fv + 1
   end.
 
 Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) % type -> Prop :=
@@ -79,11 +79,11 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
   (* EBool *)
   (* EVar *)
   | TI_Num: forall env n fv,
-    typeinf env fv (ENum n) (fv, TNum, [], [])
+    typeinf env fv (ENum n) (fv + 1, TNum, [], [])
   | TI_Bool: forall env b fv,
-    typeinf env fv (EBool b) (fv, TBool, [], [])
+    typeinf env fv (EBool b) (fv + 1, TBool, [], [])
   | TI_Var: forall env x fv T,
-    env x = Some T -> typeinf env fv (EVar x) (fv, T, [], [])
+    env x = Some T -> typeinf env fv (EVar x) (fv + 1, T, [], [])
 
   (* EIf *)
   | TI_If:
@@ -125,7 +125,7 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
   (* ENil *)
   | TI_Nil:
     forall env T fv,
-    typeinf env fv (ENil T) (fv, TList T, [], [])
+    typeinf env fv (ENil T) (fv + 1, TList T, [], [])
 
   (* EBinop *)
   | TI_Binop_nnn:
