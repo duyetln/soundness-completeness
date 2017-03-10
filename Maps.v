@@ -42,6 +42,11 @@ Proof.
   intros x y. rewrite beq_id_false_iff.
   intros H. apply H. Qed.
 
+Lemma id_dec :
+  forall x x' : id, { x = x' } + { x <> x' }.
+Proof.
+  repeat (decide equality).
+Qed.
 
 (* Total maps *)
 

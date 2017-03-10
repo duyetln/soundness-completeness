@@ -19,6 +19,27 @@ Require Import TypeChecker.
 
 (* ################################################################# *)
 (* Small proofs *)
+(* misc *)
+Lemma in_app_iff_prop :
+  forall {T : Type } (l l' : list T) (P : T -> Prop),
+    (forall i, In i (l ++ l') -> P i) <->
+    (forall i, In i l -> P i) /\ (forall i, In i l' -> P i).
+Proof.
+  introv. split.
+  - introv Hll'. split.
+    * introv Hl.
+      assert (Hll'': In i (l ++ l')).
+        { apply in_app_iff. left. assumption. }
+      apply (Hll' i Hll'').
+    * introv Hl'.
+      assert (Hll'': In i (l ++ l')).
+        { apply in_app_iff. right. assumption. }
+      apply (Hll' i Hll'').
+  - introv Hll'. inverts Hll' as Hl Hl'.
+    introv Hi. apply in_app_iff in Hi. destruct Hi as [Hil|Hil'].
+    * apply (Hl i Hil).
+    * apply (Hl' i Hil').
+Qed.
 
 (* app_sub_to_type *)
 Example app_sub_to_type_ex1 : app_sub_to_type (update empty_substs (Id 1) TNum) (TFun (TVar (Id 1)) TNum) = TFun TNum TNum.
@@ -125,7 +146,25 @@ Proof.
     + apply (IHX' x sub Hsub).
 Qed.
 
-Lemma delete_x_in_list :
+Lemma delete_not_in_list :
+  forall X x sub,
+    not (In x X) -> (delete sub X) x = sub x.
+Proof.
+  induction X as [|x' X'];
+  introv Hx;
+  simpl.
+  - reflexivity.
+  - destruct (id_dec x' x).
+    * exfalso. apply Hx. simpl. left. assumption.
+    * destruct (sub x').
+      + rewrite IHX'.
+        { apply t_update_neq. assumption. }
+        { intro. apply Hx. simpl. right. assumption. }
+      + apply (IHX' x sub).
+        intro. apply Hx. simpl. right. assumption.
+Qed.
+
+Lemma delete_in_list :
   forall X x sub,
     In x X ->
     (delete sub X) x = None.
@@ -140,6 +179,21 @@ Proof.
   - destruct (sub x') eqn:Hsub.
     + apply (IHX' x (t_update sub x' None) H).
     + apply (IHX' x sub H).
+Qed.
+
+Lemma delete_iff :
+  forall sub X,
+    (forall x, In x X -> sub x = None) <-> delete sub X = sub.
+Proof.
+  introv. split.
+  - introv Hsub. apply functional_extensionality_dep. introv.
+    destruct (in_dec id_dec x X) as [HxX|HnxX].
+    * rewrite (delete_in_list X x sub HxX), (Hsub x HxX). reflexivity.
+    * rewrite (delete_not_in_list X x sub HnxX). reflexivity.
+  - introv Hdel. introv Hin.
+    rewrite <- (delete_in_list X x sub Hin), Hdel. reflexivity.
+Qed.
+
 Qed.
 
 
