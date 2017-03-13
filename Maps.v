@@ -164,9 +164,20 @@ Definition partial_map (A:Type) := total_map (option A).
 Definition empty {A:Type} : partial_map A :=
   t_empty None.
 
-Definition update {A:Type} (m : partial_map A)
-                  (x : id) (v : A) :=
+Definition update {A:Type} (m : partial_map A) (x : id) (v : A) :=
   t_update m x (Some v).
+
+Definition key {A:Type} (m : partial_map A) (x : id) : bool :=
+  match m x with
+    | Some _ => true
+    | None => false
+  end.
+
+Definition remove {A:Type} (m : partial_map A) (x : id) : partial_map A :=
+  if key m x then t_update m x None else m.
+
+Definition merge {A:Type} (m1 m2 : partial_map A) : partial_map A :=
+  (fun i => if key m2 i then m2 i else m1 i).
 
 (** We can now lift all of the basic lemmas about total maps to
     partial maps.  *)
@@ -217,4 +228,74 @@ Theorem update_permute : forall (X:Type) v1 v2 x1 x2
 Proof.
   intros X v1 v2 x1 x2 m. unfold update.
   apply t_update_permute.
+Qed.
+
+Theorem key_true_iff : forall X (m : partial_map X) x,
+  key m x = true <-> (exists x', m x = Some x').
+Proof.
+  intros X m x. split.
+  - intros H.
+    unfold key in H.
+    destruct (m x) eqn:Hmx.
+    * exists x0. reflexivity.
+    * inversion H.
+  - intros H.
+    destruct H.
+    unfold key.
+    rewrite H.
+    reflexivity.
+Qed.
+
+Theorem key_false_iff : forall X (m : partial_map X) x,
+  key m x = false <-> m x = None.
+Proof.
+  intros X m x. split.
+  - intros.
+    unfold key in H.
+    destruct (m x) eqn:Hmx.
+    * inversion H.
+    * reflexivity.
+  - intros H.
+    unfold key.
+    rewrite H.
+    reflexivity.
+Qed.
+
+Lemma remove_eq : forall A (m: partial_map A) x,
+  (remove m x) x = None.
+Proof.
+  intros. unfold remove.
+  destruct (key m x) eqn:Hmx.
+  - apply t_update_eq.
+  - apply key_false_iff. assumption.
+Qed.
+
+Theorem remove_neq : forall X (m : partial_map X) x1 x2,
+  x2 <> x1 -> (remove m x2) x1 = m x1.
+Proof.
+  intros X m x1 x2 H.
+  unfold remove.
+  destruct (key m x2) eqn:Hmx2.
+  - apply t_update_neq. assumption.
+  - reflexivity.
+Qed.
+
+Theorem merge_shadow_key : forall A (m1 m2: partial_map A) x,
+  key m2 x = true ->
+  merge m1 m2 x = m2 x.
+Proof.
+  intros A m1 m2 x H.
+  unfold merge.
+  rewrite H.
+  reflexivity.
+Qed.
+
+Theorem merge_shadow_not_key : forall A (m1 m2: partial_map A) x,
+  key m2 x = false ->
+  merge m1 m2 x = m1 x.
+Proof.
+  intros A m1 m2 x H.
+  unfold merge.
+  rewrite H.
+  reflexivity.
 Qed.

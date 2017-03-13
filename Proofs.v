@@ -44,7 +44,7 @@ Qed.
 
 Lemma app_non_nil :
   forall {T : Type} (l l' : list T),
-    l <> [] -> (l ++ l') <>[].
+    l <> [] -> (l ++ l') <> [].
 Proof.
   introv Hl. intro.
   apply app_eq_nil in H.
@@ -154,18 +154,15 @@ Lemma delete_x_sub_none :
   forall X x sub, sub x = None -> (delete sub X) x = None.
 Proof.
   induction X as [|x' X'];
-  introv Hsub.
-  - simpl. assumption.
-  - simpl. destruct (sub x').
-    + apply (IHX' x (t_update sub x' None)). destruct (beq_id x' x) eqn:Hid.
-      * apply beq_id_true_iff in Hid.
-        rewrite Hid.
-        apply t_update_eq.
-      * apply beq_id_false_iff in Hid.
-        rewrite <- Hsub.
-        apply t_update_neq.
-        assumption.
-    + apply (IHX' x sub Hsub).
+  introv Hsub;
+  simpl.
+  - assumption.
+  - destruct (id_dec x' x) as [Heq|Hneq].
+    * apply (IHX' x (remove sub x')).
+      rewrite Heq. apply remove_eq.
+    * apply (IHX' x (remove sub x')).
+      rewrite <- Hsub. apply remove_neq.
+      assumption.
 Qed.
 
 Lemma delete_not_in_list :
@@ -176,14 +173,11 @@ Proof.
   introv Hx;
   simpl.
   - reflexivity.
-  - destruct (id_dec x' x).
+  - destruct (id_dec x' x) as [Heq|Hneq].
     * exfalso. apply Hx. simpl. left. assumption.
-    * destruct (sub x').
-      + rewrite IHX'.
-        { apply t_update_neq. assumption. }
-        { intro. apply Hx. simpl. right. assumption. }
-      + apply (IHX' x sub).
-        intro. apply Hx. simpl. right. assumption.
+    * rewrite (IHX' x (remove sub x')).
+      + apply remove_neq. assumption.
+      + intro. apply Hx. simpl. right. assumption.
 Qed.
 
 Lemma delete_in_list :
@@ -195,12 +189,8 @@ Proof.
   introv Hx;
   inverts Hx;
   simpl.
-  - destruct (sub x) eqn:Hsub.
-    + apply (delete_x_sub_none X' x (t_update sub x None)). apply t_update_eq.
-    + apply (delete_x_sub_none X' x sub Hsub).
-  - destruct (sub x') eqn:Hsub.
-    + apply (IHX' x (t_update sub x' None) H).
-    + apply (IHX' x sub H).
+  - apply (delete_x_sub_none X' x (remove sub x)). apply remove_eq.
+  - apply (IHX' x (remove sub x') H).
 Qed.
 
 Lemma delete_iff :
