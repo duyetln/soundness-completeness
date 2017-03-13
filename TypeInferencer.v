@@ -66,13 +66,24 @@ Fixpoint delete (s : substs) (l : list id) : substs :=
     end
   end.
 
-Fixpoint pick (t : t_type) (fv : nat) : nat :=
+Fixpoint typevars (t : t_type) : list id :=
   match t with
-    | TNum | TBool => fv + 1
-    | TFun x e => pick e (pick x fv)
-    | TList l => pick l fv
-    | TVar (Id n) => if leb fv n then n + 1 else fv + 1
+    | TNum | TBool => []
+    | TFun x e => typevars x ++ typevars e
+    | TList l => typevars l
+    | TVar i => [i]
   end.
+
+Definition max_typevar (t : t_type) (fv : nat) : nat :=
+  (fold_left
+    (fun mx n => Nat.max mx n)
+    (map (fun i => match i with | Id n => n end) (typevars t))
+    fv).
+
+Definition typevars_from_constr (con : constr) : list id :=
+  fold_left
+    (fun l (c : (t_type * t_type)) =>
+      let (t1, t2) := c in l ++ typevars t1 ++ typevars t2) con [].
 
 Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) % type -> Prop :=
   (* ENum *)
@@ -82,8 +93,10 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
     typeinf env fv (ENum n) (fv + 1, TNum, [], [])
   | TI_Bool: forall env b fv,
     typeinf env fv (EBool b) (fv + 1, TBool, [], [])
-  | TI_Var: forall env x fv T,
-    env x = Some T -> typeinf env fv (EVar x) (fv + 1, T, [], [])
+  | TI_Var: forall env x fv fv' T,
+    env x = Some T ->
+    max_typevar T fv + 1 = fv' ->
+    typeinf env fv (EVar x) (fv', T, [], [])
 
   (* EIf *)
   | TI_If:
@@ -100,7 +113,7 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
   | TI_Fun:
     forall env fv fv'
       x x_T e e_fv e_C e_T e_X,
-    pick x_T fv = fv' ->
+    max_typevar x_T fv + 1 = fv' ->
     typeinf (update env x x_T) fv' e (e_fv, e_T, e_C, e_X) ->
     typeinf env fv (EFun x x_T e) (e_fv, (TFun x_T e_T), e_C, e_X)
 
@@ -124,8 +137,9 @@ Inductive typeinf : t_env -> nat -> t_expr -> (nat * t_type * constr * list id) 
 
   (* ENil *)
   | TI_Nil:
-    forall env T fv,
-    typeinf env fv (ENil T) (fv + 1, TList T, [], [])
+    forall env T fv fv',
+    max_typevar T fv + 1 = fv' ->
+    typeinf env fv (ENil T) (fv', TList T, [], [])
 
   (* EBinop *)
   | TI_Binop_nnn:

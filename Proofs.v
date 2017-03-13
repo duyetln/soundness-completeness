@@ -216,29 +216,48 @@ Proof.
     rewrite <- (delete_in_list X x sub Hin), Hdel. reflexivity.
 Qed.
 
-(* pick *)
-Lemma pick_larger_fv :
+(* max_typevar *)
+Lemma max_typevar_larger_fv :
   forall t fv,
-    fv < pick t fv.
+    fv < max_typevar t fv + 1.
 Proof.
   induction t;
   introv;
   simpl;
-  try (apply (lt_n_n_1 fv)).
-  - assert (Hlt_fv_t1: fv < pick t1 fv).
+  try (apply (lt_n_n_1 fv)); unfold max_typevar; simpl.
+  - rewrite (map_app (fun i : id => match i with | Id n => n end) (typevars t1) (typevars t2)).
+    rewrite (fold_left_app (fun mx n : nat => max mx n)
+              (map (fun i : id => match i with | Id n => n end) (typevars t1))
+              (map (fun i : id => match i with | Id n => n end) (typevars t2))
+              fv).
+    fold (max_typevar t1 fv).
+    fold (max_typevar t2 (max_typevar t1 fv)).
+    assert (Hlt_fv_t1: fv < max_typevar t1 fv + 1).
       { apply (IHt1 fv). }
-    assert (Hlt_t1_t2: pick t1 fv < pick t2 (pick t1 fv)).
-      { apply (IHt2 (pick t1 fv)). }
-    apply (lt_trans fv (pick t1 fv) (pick t2 (pick t1 fv)) Hlt_fv_t1 Hlt_t1_t2).
+    rewrite Nat.add_1_r in Hlt_fv_t1. apply lt_n_Sm_le in Hlt_fv_t1.
+    assert (Hlt_t1_t2: max_typevar t1 fv < max_typevar t2 (max_typevar t1 fv) + 1).
+      { apply (IHt2 (max_typevar t1 fv)). }
+    apply (Nat.le_lt_trans fv (max_typevar t1 fv) (max_typevar t2 (max_typevar t1 fv) + 1) Hlt_fv_t1 Hlt_t1_t2).
   - apply (IHt fv).
-  - destruct i. destruct (leb fv n) eqn:Hfv_n.
-    * assert (Hfvn: fv < n \/ fv = n).
-        { apply (le_lt_or_eq fv n (leb_complete fv n Hfv_n)). }
-      destruct Hfvn as [Hlt_fv_n|Heq_fv_n].
-      + apply (lt_trans fv n (n + 1) Hlt_fv_n (lt_n_n_1 n)).
-      + rewrite Heq_fv_n. apply (lt_n_n_1 n).
-    * apply (lt_n_n_1 fv).
+  - destruct i. destruct (Max.max_dec fv n) eqn:He.
+    * rewrite e. apply (lt_n_n_1 fv).
+    * assert (Hle_fv_n: fv <= Nat.max fv n).
+        { apply (Max.le_max_l fv n). }
+      rewrite e in Hle_fv_n.
+      rewrite e.
+    apply (Nat.le_lt_trans fv n (n + 1) Hle_fv_n (lt_n_n_1 n)).
 Qed.
+
+(* typevars *)
+Example typevars_ex1 :
+  typevars (TFun (TVar (Id 1)) (TList (TVar (Id 2)))) = [Id 1; Id 2].
+Proof. reflexivity. Qed.
+
+Example typevars_ex2 :
+  typevars_from_constr
+    [(TList (TVar (Id 1)), TList TNum); (TList (TVar (Id 3)), TList TNum); (TVar (Id 2), TNum)] =
+    [Id 1; Id 3; Id 2].
+Proof. reflexivity. Qed.
 
 (* typeinf *)
 Lemma typeinf_larger_fv :
@@ -250,6 +269,7 @@ Proof.
   inverts Hti as Htie1 Htie2 Htie3;
   try (apply (lt_n_n_1 fv1));
   sort.
+  - apply (max_typevar_larger_fv S fv1).
   - assert (Hlt_fv1_c_fv: fv1 < c_fv).
       { apply (IHe1 t_env fv1 c_fv c_T c_C c_X Htie1). }
     assert (Hlt_c_fv_e1_fv: c_fv < e1_fv).
@@ -259,11 +279,11 @@ Proof.
     assert (Hlt_c_fv_fv2: c_fv < fv2).
       { apply (lt_trans c_fv e1_fv fv2 Hlt_c_fv_e1_fv Hlt_e1_fv_fv2). }
     apply (lt_trans fv1 c_fv fv2 Hlt_fv1_c_fv Hlt_c_fv_fv2).
-  - assert (Hlt_fv1_t: fv1 < pick t fv1).
-      { apply (pick_larger_fv t fv1). }
-    assert (Hlt_t_fv2: pick t fv1 < fv2).
-      { apply (IHe (update t_env i t) (pick t fv1) fv2 e_T C X Htie1). }
-    apply (lt_trans fv1 (pick t fv1) fv2 Hlt_fv1_t Hlt_t_fv2).
+  - assert (Hlt_fv1_t: fv1 < max_typevar t fv1 + 1).
+      { apply (max_typevar_larger_fv t fv1). }
+    assert (Hlt_t_fv2: max_typevar t fv1 + 1< fv2).
+      { apply (IHe (update t_env i t) (max_typevar t fv1 + 1) fv2 e_T C X Htie1). }
+    apply (lt_trans fv1 (max_typevar t fv1 + 1) fv2 Hlt_fv1_t Hlt_t_fv2).
   - assert (Hlt_fv1_f_fv: fv1 < f_fv).
       { apply (IHe1 t_env fv1 f_fv f_T f_C f_X Htie1). }
     assert (Hlt_f_fv_e_fv: f_fv < e_fv).
@@ -291,9 +311,10 @@ Proof.
     assert (Hlt_hd_fv_fv2: hd_fv < fv2).
       { apply (IHe2 t_env hd_fv fv2 tl_T tl_C tl_X Htie2). }
     apply (lt_trans fv1 hd_fv fv2 Hlt_fv1_hd_fv Hlt_hd_fv_fv2).
+  - apply (max_typevar_larger_fv t fv1).
 Qed.
 
-Lemma typeinf_between_fvs :
+Lemma typeinf_X_between_fvs :
   forall e t_env fv1 fv2 S C X,
     typeinf t_env fv1 e (fv2, S, C, X) ->
     (forall n, In (Id n) X -> fv1 < n /\ n < fv2).
@@ -346,13 +367,13 @@ Proof.
         split; assumption.
 
   (* EFun *)
-  - assert (Hlt_t_fv2: (pick t fv1) < n < fv2).
-      { apply ((IHe (update t_env i t) (pick t fv1) fv2 e_T C X Htie1) n Hin). }
+  - assert (Hlt_t_fv2: (max_typevar t fv1 + 1) < n < fv2).
+      { apply ((IHe (update t_env i t) (max_typevar t fv1 + 1) fv2 e_T C X Htie1) n Hin). }
     destruct Hlt_t_fv2 as [Hlt_t_n Hlt_n_fv2].
-    assert (Hlt_fv1_t: fv1 < pick t fv1).
-      { apply (pick_larger_fv t fv1). }
+    assert (Hlt_fv1_t: fv1 < max_typevar t fv1 + 1).
+      { apply (max_typevar_larger_fv t fv1). }
     assert (Hlt_fv1_n: fv1 < n).
-      { apply (lt_trans fv1 (pick t fv1) n Hlt_fv1_t Hlt_t_n). }
+      { apply (lt_trans fv1 (max_typevar t fv1 + 1) n Hlt_fv1_t Hlt_t_n). }
     split; assumption.
 
   (* ECall *)
@@ -481,9 +502,9 @@ Proof.
   destruct Hand as [HxX1 HxX2].
   destruct x.
   assert (Hlt_fv1_n_fv2: fv1 < n < fv2).
-    { apply ((typeinf_between_fvs e1 t_env1 fv1 fv2 S1 C1 X1 Htie1) n HxX1). }
+    { apply ((typeinf_X_between_fvs e1 t_env1 fv1 fv2 S1 C1 X1 Htie1) n HxX1). }
   assert (Hlt_fv2_n_fv3: fv2 < n < fv3).
-    { apply ((typeinf_between_fvs e2 t_env2 fv2 fv3 S2 C2 X2 Htie2) n HxX2). }
+    { apply ((typeinf_X_between_fvs e2 t_env2 fv2 fv3 S2 C2 X2 Htie2) n HxX2). }
   destruct Hlt_fv1_n_fv2 as [Hlt_fv1_n Hlt_n_fv2].
   destruct Hlt_fv2_n_fv3 as [Hlt_fv2_n Hlt_n_fv3].
   assert (Hlt_n_n: n < n).
@@ -573,7 +594,7 @@ Proof.
   (* EFun *)
   - (* typecheck (update ti_env i t) (app_sub_to_expr sub e) (app_sub_to_type sub e_T) *)
     assert (He: typecheck (app_sub_to_env sub (update ti_env i t)) (app_sub_to_expr sub e) (app_sub_to_type sub e_T)).
-      { apply (IHe (update ti_env i t) (pick t fv1) fv2 e_T C X sub (app_sub_to_expr sub e) (app_sub_to_env sub (update ti_env i t)) (app_sub_to_type sub e_T));
+      { apply (IHe (update ti_env i t) (max_typevar t fv1 + 1) fv2 e_T C X sub (app_sub_to_expr sub e) (app_sub_to_env sub (update ti_env i t)) (app_sub_to_type sub e_T));
         try assumption; reflexivity. }
     rewrite <- Hexpr, <- Htype. apply TC_Fun.
     rewrite <- Henv, <- (app_sub_to_update_env sub ti_env i t).
