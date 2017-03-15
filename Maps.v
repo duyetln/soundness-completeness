@@ -4,6 +4,9 @@ Require Import Coq.Arith.Arith.
 Require Import Coq.Bool.Bool.
 Require Import Coq.Logic.FunctionalExtensionality.
 
+Require Import List.
+Import ListNotations.
+
 Inductive id : Type :=
   | Id : nat -> id.
 
@@ -177,7 +180,14 @@ Definition remove {A:Type} (m : partial_map A) (x : id) : partial_map A :=
   if key m x then t_update m x None else m.
 
 Definition merge {A:Type} (m1 m2 : partial_map A) : partial_map A :=
-  (fun i => if key m2 i then m2 i else m1 i).
+  fun i => if key m2 i then m2 i else m1 i.
+
+Fixpoint omit {A:Type} (m : partial_map A) (l : list id) : partial_map A :=
+  match l with
+    | [] => m
+    | i::l' => omit (remove m i) l'
+  end.
+
 
 (** We can now lift all of the basic lemmas about total maps to
     partial maps.  *)
@@ -298,4 +308,63 @@ Proof.
   unfold merge.
   rewrite H.
   reflexivity.
+Qed.
+
+Lemma omit_none :
+  forall A l i (m : partial_map A), m i = None -> (omit m l) i = None.
+Proof.
+  intros A.
+  induction l as [|i' l'];
+  intros i m Hmi;
+  simpl.
+  - assumption.
+  - destruct (id_dec i' i) as [Heq|Hneq].
+    * apply (IHl' i (remove m i')).
+      rewrite Heq. apply remove_eq.
+    * apply (IHl' i (remove m i')).
+      rewrite <- Hmi. apply remove_neq.
+      assumption.
+Qed.
+
+Lemma omit_not_in_list :
+  forall A l i (m : partial_map A),
+    not (In i l) -> (omit m l) i = m i.
+Proof.
+  intros A.
+  induction l as [|i' l'];
+  intros i m Hli;
+  simpl.
+  - reflexivity.
+  - destruct (id_dec i' i) as [Heq|Hneq].
+    * exfalso. apply Hli. simpl. left. assumption.
+    * rewrite (IHl' i (remove m i')).
+      + apply remove_neq. assumption.
+      + intro. apply Hli. simpl. right. assumption.
+Qed.
+
+Lemma omit_in_list :
+  forall A l i (m : partial_map A),
+    In i l ->
+    (omit m l) i = None.
+Proof.
+  intros A.
+  induction l as [|i' l'];
+  intros i m Hli;
+  inversion Hli;
+  simpl.
+  - rewrite H. apply (omit_none A l' i (remove m i)). apply remove_eq.
+  - apply (IHl' i (remove m i') H).
+Qed.
+
+Theorem omit_list_iff :
+  forall A (m : partial_map A) l,
+    (forall i, In i l -> m i = None) <-> omit m l = m.
+Proof.
+  intros. split.
+  - intros Hmi. apply functional_extensionality_dep. intros.
+    destruct (in_dec id_dec x l) as [Hxl|Hnxl].
+    * rewrite (omit_in_list A l x m Hxl), (Hmi x Hxl). reflexivity.
+    * rewrite (omit_not_in_list A l x m Hnxl). reflexivity.
+  - intros Hml. intros x Hil.
+    rewrite <- (omit_in_list A l x m Hil), Hml. reflexivity.
 Qed.

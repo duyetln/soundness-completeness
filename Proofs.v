@@ -141,71 +141,6 @@ Proof.
   - reflexivity.
 Qed.
 
-(* delete *)
-Example delete_ex1 :
-  (delete
-  (update (update (update empty_substs (Id 1) TNum) (Id 2) TNum) (Id 3) TNum)
-  [Id 2]) (Id 2) = None.
-Proof.
-  reflexivity.
-Qed.
-
-Lemma delete_x_sub_none :
-  forall X x sub, sub x = None -> (delete sub X) x = None.
-Proof.
-  induction X as [|x' X'];
-  introv Hsub;
-  simpl.
-  - assumption.
-  - destruct (id_dec x' x) as [Heq|Hneq].
-    * apply (IHX' x (remove sub x')).
-      rewrite Heq. apply remove_eq.
-    * apply (IHX' x (remove sub x')).
-      rewrite <- Hsub. apply remove_neq.
-      assumption.
-Qed.
-
-Lemma delete_not_in_list :
-  forall X x sub,
-    not (In x X) -> (delete sub X) x = sub x.
-Proof.
-  induction X as [|x' X'];
-  introv Hx;
-  simpl.
-  - reflexivity.
-  - destruct (id_dec x' x) as [Heq|Hneq].
-    * exfalso. apply Hx. simpl. left. assumption.
-    * rewrite (IHX' x (remove sub x')).
-      + apply remove_neq. assumption.
-      + intro. apply Hx. simpl. right. assumption.
-Qed.
-
-Lemma delete_in_list :
-  forall X x sub,
-    In x X ->
-    (delete sub X) x = None.
-Proof.
-  induction X as [|x' X'];
-  introv Hx;
-  inverts Hx;
-  simpl.
-  - apply (delete_x_sub_none X' x (remove sub x)). apply remove_eq.
-  - apply (IHX' x (remove sub x') H).
-Qed.
-
-Lemma delete_iff :
-  forall sub X,
-    (forall x, In x X -> sub x = None) <-> delete sub X = sub.
-Proof.
-  introv. split.
-  - introv Hsub. apply functional_extensionality_dep. introv.
-    destruct (in_dec id_dec x X) as [HxX|HnxX].
-    * rewrite (delete_in_list X x sub HxX), (Hsub x HxX). reflexivity.
-    * rewrite (delete_not_in_list X x sub HnxX). reflexivity.
-  - introv Hdel. introv Hin.
-    rewrite <- (delete_in_list X x sub Hin), Hdel. reflexivity.
-Qed.
-
 (* max_typevar *)
 Lemma max_typevar_larger_fv :
   forall t fv,
@@ -778,7 +713,7 @@ Theorem typeinference_completeness :
   app_sub_to_env sub ti_env = tc_env ->
   typecheck tc_env t T ->
   (forall i, In i X -> sub i = None) ->
-  (exists sub', satisfy sub' C /\ app_sub_to_type sub' S = T /\ delete sub' X = sub).
+  (exists sub', satisfy sub' C /\ app_sub_to_type sub' S = T /\ omit sub' X = sub).
 Proof.
   induction e;
   introv Hti Hexpr Henv Htc Hnone;
@@ -811,7 +746,11 @@ Proof.
     * reflexivity.
   - admit.
   - admit.
-  - admit.
+  - inverts Hti as Htie1 Htie2 Htie3.
+    simpl in Hexpr.
+    rewrite <- Hexpr in Htc.
+    inverts Htc as Htce1 Htce2 Htce3. sort.
+    admit.
   - admit.
   - admit.
   - inverts Hti as Htie1 Htie2 Htie3.

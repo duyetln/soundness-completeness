@@ -56,12 +56,6 @@ Inductive satisfy : substs -> constr -> Prop :=
     satisfy s tl ->
     satisfy s ((t1, t2)::tl).
 
-Fixpoint delete (s : substs) (l : list id) : substs :=
-  match l with
-    | [] => s
-    | i::tl => delete (remove s i) tl
-  end.
-
 Fixpoint typevars (t : t_type) : list id :=
   match t with
     | TNum | TBool => []
