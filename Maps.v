@@ -188,6 +188,12 @@ Fixpoint omit {A:Type} (m : partial_map A) (l : list id) : partial_map A :=
     | i::l' => omit (remove m i) l'
   end.
 
+Fixpoint take {A:Type} (m : partial_map A) (l : list id) : partial_map A :=
+  match l with
+    | [] => @empty A
+    | i::l' =>
+      if key m i then t_update (take m l') i (m i) else take m l'
+  end.
 
 (** We can now lift all of the basic lemmas about total maps to
     partial maps.  *)
@@ -368,3 +374,74 @@ Proof.
   - intros Hml. intros x Hil.
     rewrite <- (omit_in_list A l x m Hil), Hml. reflexivity.
 Qed.
+
+Lemma take_none :
+  forall A l i (m : partial_map A), m i = None -> (take m l) i = None.
+Proof.
+  intros A.
+  induction l as [|i' l'];
+  intros i m Hmi;
+  simpl.
+  - apply apply_empty.
+  - destruct (id_dec i' i) as [Heq|Hneq].
+    * assert (Hk: key m i = false).
+        { apply key_false_iff. assumption. }
+      rewrite Heq, Hmi. rewrite Hk.
+      apply (IHl' i m Hmi).
+    * destruct (key m i') eqn:Hk.
+      + rewrite <- (IHl' i m Hmi). apply t_update_neq. assumption.
+      + apply (IHl' i m Hmi).
+Qed.
+
+Lemma take_not_in_list :
+  forall A l i (m : partial_map A),
+    not (In i l) -> (take m l) i = None.
+Proof.
+  intros A.
+  induction l as [|i' l'];
+  intros i m Hli;
+  simpl.
+  - apply apply_empty.
+  - destruct (id_dec i' i) as [Heq|Hneq].
+    * exfalso. apply Hli. simpl. left. assumption.
+    * apply not_in_cons in Hli. destruct Hli as [Hii' Hil'].
+      destruct (key m i') eqn:Hk.
+      + rewrite <- (IHl' i m Hil'). apply t_update_neq. assumption.
+      + apply (IHl' i m Hil').
+Qed.
+
+Lemma take_in_list :
+  forall A l i (m : partial_map A),
+    In i l ->
+    (take m l) i = m i.
+Proof.
+  intros A.
+  induction l as [|i' l'];
+  intros i m Hli;
+  inversion Hli;
+  simpl;
+  destruct (key m i') eqn:Hk.
+  - rewrite H. apply t_update_eq.
+  - rewrite H in Hk.
+    apply key_false_iff in Hk. rewrite Hk.
+    apply (take_none A l' i m Hk).
+  - destruct (id_dec i' i).
+    * rewrite <- e. apply t_update_eq.
+    * rewrite <- (IHl' i m H).
+      apply t_update_neq. assumption.
+  - apply (IHl' i m H).
+Qed.
+
+Theorem take_list_iff :
+  forall A (m : partial_map A) l,
+    (forall i, In i l -> m i = None) <-> take m l = @empty A.
+Proof.
+  intros. split.
+  - intros Hmi. apply functional_extensionality_dep. intros.
+    destruct (in_dec id_dec x l) as [Hxl|Hnxl].
+    * rewrite (take_in_list A l x m Hxl), (Hmi x Hxl). reflexivity.
+    * rewrite (take_not_in_list A l x m Hnxl). reflexivity.
+  - intros Hml. intros x Hil.
+    rewrite <- (take_in_list A l x m Hil), Hml. reflexivity.
+Qed.
+
