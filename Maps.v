@@ -445,3 +445,62 @@ Proof.
     rewrite <- (take_in_list A l x m Hil), Hml. reflexivity.
 Qed.
 
+Lemma omit_take_list :
+  forall A (m : partial_map A) l,
+    omit (take m l) l = @empty A.
+Proof.
+  intros A m.
+  induction l as [|i' l'];
+  simpl.
+  - reflexivity.
+  - apply functional_extensionality_dep.
+    intros i. rewrite (apply_empty A i).
+    destruct (id_dec i' i) as [Hideq|Hidneq].
+    * rewrite Hideq.
+      apply omit_none.
+      apply remove_eq.
+    * destruct (in_dec id_dec i l') as [Hil'|Hnil'].
+      + apply (omit_in_list A l' i (remove (if key m i' then t_update (take m l') i' (m i') else take m l') i') Hil').
+      + rewrite (omit_not_in_list A l' i (remove (if key m i' then t_update (take m l') i' (m i') else take m l') i') Hnil').
+        rewrite (remove_neq A (if key m i' then t_update (take m l') i' (m i') else take m l') i i' Hidneq).
+        destruct (key m i') eqn:Hkmi'.
+        { rewrite (t_update_neq (option A) (m i') i' i (take m l') Hidneq).
+          apply (take_not_in_list A l' i m Hnil'). }
+        { apply (take_not_in_list A l' i m Hnil'). }
+Qed.
+
+Lemma take_omit_list :
+  forall A (m : partial_map A) l,
+    take (omit m l) l = @empty A.
+Proof.
+  intros A m.
+  induction l as [|i' l'];
+  simpl.
+  - reflexivity.
+  - assert (Hkorml'i': key (omit (remove m i') l') i' = false).
+      { apply key_false_iff.
+        apply omit_none.
+        apply remove_eq. }
+    rewrite Hkorml'i'.
+    apply functional_extensionality_dep.
+    intros i. rewrite (apply_empty A i).
+    destruct (id_dec i' i) as [Hideq|Hidneq].
+    * rewrite Hideq.
+      apply take_none.
+      apply omit_none.
+      apply remove_eq.
+    * destruct (in_dec id_dec i l') as [Hil'|Hnil'].
+      + rewrite (take_in_list A l' i (omit (remove m i') l') Hil').
+        apply (omit_in_list A l' i (remove m i') Hil').
+      + apply (take_not_in_list A l' i (omit (remove m i') l') Hnil').
+Qed.
+
+Theorem take_omit_permute :
+  forall A (m : partial_map A) l,
+    take (omit m l) l = omit (take m l) l.
+Proof.
+  intros.
+  rewrite take_omit_list.
+  rewrite omit_take_list.
+  reflexivity.
+Qed.
