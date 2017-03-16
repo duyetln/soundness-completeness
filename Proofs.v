@@ -705,9 +705,9 @@ Qed.
 
 Theorem typeinference_completeness :
   forall
-    e ti_env fv1 fv2 S C X
+    e (ti_env : t_env) fv1 fv2 S C X
     sub
-    t tc_env T,
+    t (tc_env : t_env) T,
   typeinf ti_env fv1 e (fv2, S, C, X) ->
   app_sub_to_expr sub e = t ->
   app_sub_to_env sub ti_env = tc_env ->
@@ -717,47 +717,54 @@ Theorem typeinference_completeness :
 Proof.
   induction e;
   introv Hti Hexpr Henv Htc Hnone;
+  try (inverts Hti as Htie1 Htie2 Htie3;
+    simpl in Hexpr;
+    rewrite <- Hexpr in Htc;
+    inverts Htc as Htce1 Htce2 Htce3);
   sort.
-  - inverts Hti as Htie1 Htie2 Htie3.
-    simpl in Hexpr.
-    rewrite <- Hexpr in Htc.
-    inverts Htc as Htce1 Htce2 Htce3.
-    exists sub. splits.
+  (* ENum *)
+  - exists sub. splits.
     * apply SAT_Empty.
     * reflexivity.
     * reflexivity.
-  - inverts Hti as Htie1 Htie2 Htie3.
-    simpl in Hexpr.
-    rewrite <- Hexpr in Htc.
-    inverts Htc as Htce1 Htce2 Htce3.
-    exists sub. splits.
+  (* EBool *)
+  - exists sub. splits.
     * apply SAT_Empty.
     * reflexivity.
     * reflexivity.
-  - inverts Hti as Htie1 Htie2 Htie3.
-    simpl in Hexpr.
-    rewrite <- Hexpr in Htc.
-    inverts Htc as Htce1 Htce2 Htce3.
-    exists sub. splits.
+  (* EVar *)
+  - exists sub. splits.
     * apply SAT_Empty.
     * rewrite <- Henv in Htce1. unfold app_sub_to_env in Htce1.
       rewrite Htie1 in Htce1. inverts Htce1.
       reflexivity.
     * reflexivity.
+
+  (* EIf *)
   - admit.
+
+  (* EFun *)
   - admit.
-  - inverts Hti as Htie1 Htie2 Htie3.
-    simpl in Hexpr.
-    rewrite <- Hexpr in Htc.
-    inverts Htc as Htce1 Htce2 Htce3. sort.
-    admit.
+
+  (* ECall *)
   - admit.
+
+  (* EBinop *)
   - admit.
-  - inverts Hti as Htie1 Htie2 Htie3.
-    simpl in Hexpr.
-    rewrite <- Hexpr in Htc.
-    inverts Htc as Htce1 Htce2 Htce3.
-    exists sub. splits.
+  - inverts Htie3 as Htie3beq; inverts Htce1 as Htce1beq; inverts Htce1beq.
+  - inverts Htie3 as Htie3beq; inverts Htce1 as Htce1beq; inverts Htce1beq.
+  - inverts Htie3 as Htie3beq; inverts Htce1 as Htce1beq; inverts Htce1beq.
+  - admit.
+  - inverts Htie3 as Htie3beq; inverts Htce1 as Htce1beq; inverts Htce1beq.
+  - inverts Htie3 as Htie3beq; inverts Htce1 as Htce1beq; inverts Htce1beq.
+  - inverts Htie3 as Htie3beq; inverts Htce1 as Htce1beq; inverts Htce1beq.
+  - admit.
+
+  (* ECons *)
+  - admit.
+
+  (* ENil *)
+  - exists sub. splits.
     * apply SAT_Empty.
     * reflexivity.
     * reflexivity.
