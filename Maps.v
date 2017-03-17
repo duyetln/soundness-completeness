@@ -277,6 +277,14 @@ Proof.
     reflexivity.
 Qed.
 
+Theorem key_empty : forall X x,
+  key (@empty X) x = false.
+Proof.
+  intros.
+  apply key_false_iff.
+  apply apply_empty.
+Qed.
+
 Lemma remove_eq : forall A (m: partial_map A) x,
   (remove m x) x = None.
 Proof.
@@ -297,8 +305,7 @@ Proof.
 Qed.
 
 Theorem merge_shadow_key : forall A (m1 m2: partial_map A) x,
-  key m2 x = true ->
-  merge m1 m2 x = m2 x.
+  key m2 x = true -> merge m1 m2 x = m2 x.
 Proof.
   intros A m1 m2 x H.
   unfold merge.
@@ -307,8 +314,7 @@ Proof.
 Qed.
 
 Theorem merge_shadow_not_key : forall A (m1 m2: partial_map A) x,
-  key m2 x = false ->
-  merge m1 m2 x = m1 x.
+  key m2 x = false -> merge m1 m2 x = m1 x.
 Proof.
   intros A m1 m2 x H.
   unfold merge.
@@ -316,8 +322,41 @@ Proof.
   reflexivity.
 Qed.
 
+Theorem merge_empty_l : forall A (m : partial_map A),
+  merge empty m = m.
+Proof.
+  intros A m.
+  apply functional_extensionality_dep.
+  intros i. unfold merge.
+  destruct (key m i) eqn:Hkmi.
+  - reflexivity.
+  - rewrite apply_empty. symmetry.
+    apply key_false_iff. assumption.
+Qed.
+
+Theorem merge_empty_r : forall A (m : partial_map A),
+  merge m empty = m.
+Proof.
+  intros A m.
+  apply functional_extensionality_dep.
+  intros i. unfold merge.
+  rewrite key_empty. reflexivity.
+Qed.
+
+Lemma omit_list :
+  forall A l1 l2 (m : partial_map A),
+    omit m (l1 ++ l2) = omit (omit m l1) l2.
+Proof.
+  intros A.
+  induction l1 as [|i1 l1'];
+  simpl.
+  - reflexivity.
+  - intros. rewrite (IHl1' l2 (remove m i1)). reflexivity.
+Qed.
+
 Lemma omit_none :
-  forall A l i (m : partial_map A), m i = None -> (omit m l) i = None.
+  forall A l i (m : partial_map A),
+    m i = None -> (omit m l) i = None.
 Proof.
   intros A.
   induction l as [|i' l'];
@@ -350,8 +389,7 @@ Qed.
 
 Lemma omit_in_list :
   forall A l i (m : partial_map A),
-    In i l ->
-    (omit m l) i = None.
+    In i l -> (omit m l) i = None.
 Proof.
   intros A.
   induction l as [|i' l'];
@@ -376,7 +414,8 @@ Proof.
 Qed.
 
 Lemma take_none :
-  forall A l i (m : partial_map A), m i = None -> (take m l) i = None.
+  forall A l i (m : partial_map A),
+    m i = None -> (take m l) i = None.
 Proof.
   intros A.
   induction l as [|i' l'];
@@ -412,8 +451,7 @@ Qed.
 
 Lemma take_in_list :
   forall A l i (m : partial_map A),
-    In i l ->
-    (take m l) i = m i.
+    In i l -> (take m l) i = m i.
 Proof.
   intros A.
   induction l as [|i' l'];
@@ -430,6 +468,34 @@ Proof.
     * rewrite <- (IHl' i m H).
       apply t_update_neq. assumption.
   - apply (IHl' i m H).
+Qed.
+
+Lemma take_list :
+  forall A l1 l2 (m : partial_map A),
+    take m (l1 ++ l2) = merge (take m l1) (take m l2).
+Proof.
+  intros A.
+  induction l1 as [|i1' l1'];
+  simpl; intros.
+  - rewrite merge_empty_l. reflexivity.
+  - destruct (key m i1') eqn:Hkmi1'.
+    * rewrite (IHl1' l2 m). apply functional_extensionality_dep.
+      intros i. unfold merge. unfold t_update.
+      destruct (beq_id i1' i) eqn:Hbeqidi1'i.
+      + apply (beq_id_true_iff i1' i) in Hbeqidi1'i.
+        rewrite Hbeqidi1'i. rewrite Hbeqidi1'i in Hkmi1'.
+        destruct (in_dec id_dec i l2) eqn:Hinil2.
+        { rewrite (take_in_list A l2 i m i0).
+          apply key_true_iff in Hkmi1'.
+          rewrite <- (take_in_list A l2 i m i0) in Hkmi1'.
+          apply key_true_iff in Hkmi1'.
+          rewrite Hkmi1'. reflexivity. }
+        { assert (H: take m l2 i = None).
+            { apply (take_not_in_list A l2 i m n). }
+          rewrite H. apply (key_false_iff A (take m l2) i) in H.
+          rewrite H. reflexivity. }
+      + reflexivity.
+    * rewrite (IHl1' l2 m). reflexivity.
 Qed.
 
 Theorem take_list_iff :
