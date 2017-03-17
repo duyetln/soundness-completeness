@@ -63,6 +63,32 @@ Proof.
   assumption.
 Qed.
 
+Lemma lt_n_n :
+  forall n, ~(n < n).
+Proof.
+  unfold not.
+  introv H.
+  apply (le_not_lt n n (le_n n)).
+  assumption.
+Qed.
+
+Lemma and_factor :
+  forall P Q R,
+     P /\ (Q \/ R) <-> (P /\ Q) \/ (P /\ R).
+Proof.
+  introv. split.
+  - introv H. destruct H as [HP HQR]. destruct HQR as [HQ|HR].
+    * left. split; assumption.
+    * right. split; assumption.
+  - introv H. destruct H as [HPQ|HPR].
+    * destruct HPQ as [HP HQ]. split.
+      + assumption.
+      + left. assumption.
+    * destruct HPR as [HP HR]. split.
+      + assumption.
+      + right. assumption.
+Qed.
+
 (* app_sub_to_type *)
 Example app_sub_to_type_ex1 : app_sub_to_type (update empty_substs (Id 1) TNum) (TFun (TVar (Id 1)) TNum) = TFun TNum TNum.
 Proof. reflexivity. Qed.
@@ -170,7 +196,43 @@ Proof.
         { apply (Max.le_max_l fv n). }
       rewrite e in Hle_fv_n.
       rewrite e.
-    apply (Nat.le_lt_trans fv n (n + 1) Hle_fv_n (lt_n_n_1 n)).
+      apply (Nat.le_lt_trans fv n (n + 1) Hle_fv_n (lt_n_n_1 n)).
+Qed.
+
+Lemma max_typevar_larger_typevar :
+  forall t fv,
+    (forall n, In (Id n) (typevars t) -> n <  max_typevar t fv + 1).
+Proof.
+  induction t;
+  unfold max_typevar;
+  simpl;
+  introv Hin;
+  simpl in Hin;
+  try (inverts Hin as H').
+  - rewrite (map_app (fun i : id => match i with | Id n0 => n0 end) (typevars t1) (typevars t2)).
+    rewrite (fold_left_app (fun mx n : nat => max mx n)
+              (map (fun i : id => match i with | Id n0 => n0 end) (typevars t1))
+              (map (fun i : id => match i with | Id n0 => n0 end) (typevars t2))
+              fv).
+    fold (max_typevar t1 fv).
+    fold (max_typevar t2 (max_typevar t1 fv)).
+    apply in_app_or in Hin. destruct Hin as [Hint1|Hint2].
+    * assert (Hlt_n_t1: n < max_typevar t1 fv + 1).
+        { apply (IHt1 fv n Hint1). }
+      rewrite Nat.add_1_r in Hlt_n_t1. apply lt_n_Sm_le in Hlt_n_t1.
+      assert (Hlt_t1_t2: max_typevar t1 fv < max_typevar t2 (max_typevar t1 fv) + 1).
+        { apply (max_typevar_larger_fv t2 (max_typevar t1 fv)). }
+      apply (Nat.le_lt_trans n (max_typevar t1 fv) (max_typevar t2 (max_typevar t1 fv) + 1) Hlt_n_t1 Hlt_t1_t2).
+    * apply (IHt2 (max_typevar t1 fv) n Hint2).
+  - fold (max_typevar t fv). apply (IHt fv n Hin).
+  - destruct (Max.max_dec fv n) eqn:He.
+    * assert (Hle_n_fv: n <= Nat.max fv n).
+        { apply (Max.le_max_r fv n). }
+      rewrite e in Hle_n_fv.
+      rewrite e.
+      apply (Nat.le_lt_trans n fv (fv + 1) Hle_n_fv (lt_n_n_1 fv)).
+    * rewrite e. apply (lt_n_n_1 n).
+  - inverts H'.
 Qed.
 
 (* typevars *)
@@ -432,10 +494,44 @@ Proof.
     { apply ((typeinf_X_between_fvs e2 t_env2 fv2 fv3 S2 C2 X2 Htie2) n HxX2). }
   destruct Hlt_fv1_n_fv2 as [Hlt_fv1_n Hlt_n_fv2].
   destruct Hlt_fv2_n_fv3 as [Hlt_fv2_n Hlt_n_fv3].
-  assert (Hlt_n_n: n < n).
-    { apply (lt_trans n fv2 n Hlt_n_fv2 Hlt_fv2_n). }
-  apply (le_not_lt n n (le_n n)).
-  assumption.
+  apply (lt_n_n n (lt_trans n fv2 n Hlt_n_fv2 Hlt_fv2_n)).
+Qed.
+
+Lemma app_sub_type_omit_disjoint_list :
+  forall T sub l,
+    (forall i, ~(In i (typevars T) /\ In i l)) ->
+    app_sub_to_type (omit sub l) T = app_sub_to_type sub T.
+Proof.
+  induction T;
+  introv Hnin;
+  simpl in Hnin;
+  simpl;
+  unfold not in Hnin;
+  try reflexivity.
+  - assert (HT1: forall i : id, ~ (In i (typevars T1) /\ In i l)).
+      { introv. unfold not.
+        introv Hini. destruct Hini.
+        apply (Hnin i). split.
+        - apply in_or_app. left. assumption.
+        - assumption. }
+    assert (HT2: forall i : id, ~ (In i (typevars T2) /\ In i l)).
+      { introv. unfold not.
+        introv Hini. destruct Hini.
+        apply (Hnin i). split.
+        - apply in_or_app. right. assumption.
+        - assumption. }
+    rewrite (IHT1 sub l HT1).
+    rewrite (IHT2 sub l HT2).
+    reflexivity.
+  - rewrite (IHT sub l Hnin).
+    reflexivity.
+  - assert (Hini: ~ (In i l)).
+    { unfold not. introv Hin.
+      apply (Hnin i). split.
+      - left. reflexivity.
+      - assumption. }
+    rewrite (omit_not_in_list t_type l i sub Hini).
+    reflexivity.
 Qed.
 
 (* ################################################################# *)
