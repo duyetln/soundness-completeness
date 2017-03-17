@@ -840,7 +840,26 @@ Proof.
   - admit.
 
   (* EFun *)
-  - admit.
+  - assert (He: exists se' : substs,
+      satisfy se' C /\ app_sub_to_type se' e_T = e_T0 /\ omit se' X = sub).
+      { apply (IHe (update ti_env i t) (max_typevar t fv1 + 1) fv2 e_T C X sub (app_sub_to_expr sub e) (update tc_env i (app_sub_to_type sub t)) e_T0);
+        try assumption; try reflexivity.
+        rewrite <- Henv. apply app_sub_to_update_env. }
+    destruct He as [se' [Hsub [Happsub Homit]]].
+    assert (He_fvs: forall n, In (Id n) X -> (max_typevar t fv1 + 1) < n /\ n < fv2).
+      { apply (typeinf_X_between_fvs e (update ti_env i t) (max_typevar t fv1 + 1) fv2 e_T C X Htie1). }
+    assert (Ht_maxfv: forall n, In (Id n) (typevars t) -> n <  max_typevar t fv1 + 1).
+      { apply (max_typevar_larger_typevar t fv1). }
+    assert (HitX: forall i, ~(In i (typevars t) /\ In i X)).
+      { intros i'. unfold not. introv Hini'.
+        destruct Hini' as [Hi'tv Hi'X]. destruct i'.
+        apply He_fvs in Hi'X. apply Ht_maxfv in Hi'tv.
+        destruct Hi'X as [Hi'Xmx Hi'Xfv2].
+        apply (lt_n_n n (lt_trans n (max_typevar t fv1 + 1) n Hi'tv Hi'Xmx)). }
+    assert (HomitsubX: app_sub_to_type (omit se' X) t = app_sub_to_type se' t).
+      { apply (app_sub_type_omit_disjoint_list t se' X HitX). }
+    exists se'. splits; try assumption. simpl.
+    rewrite Happsub. rewrite <- HomitsubX, <- Homit. reflexivity.
 
   (* ECall *)
   - admit.
